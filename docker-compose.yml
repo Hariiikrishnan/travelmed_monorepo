@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./travelmed-backend
+      dockerfile: Dockerfile
+    container_name: travelmed_api
+    restart: always
+    environment:
+      # Pass your production variables here
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET:-production_secret_do_not_use}
+    ports:
+      - "5000:5000"
+    networks:
+      - travelmed_network
+
+  admin:
+    build:
+      context: ./travelmed-admin
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.travelmed.org
+    container_name: travelmed_admin
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    networks:
+      - travelmed_network
+
+  website:
+    build:
+      context: ./travelmed-website
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.travelmed.org
+    container_name: travelmed_website
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    ports:
+      - "3001:3000" # Mapped to 3001 so it doesn't conflict with Admin
+    networks:
+      - travelmed_network
+
+networks:
+  travelmed_network:
+    driver: bridge

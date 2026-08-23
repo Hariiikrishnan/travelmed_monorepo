@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "e7c5094a-de39-4e56-8ae3-4786fa019b9b",
+      "name": "HK",
+      "location": "Chennai",
+      "tripType": "Vacation",
+      "quote": "Good",
+      "rating": 5,
+      "avatar": "https://i.pravatar.cc/150?u=HK",
+      "status": "Pending",
+      "reply": null,
+      "createdAt": "2026-08-22T18:37:22.279Z",
+      "updatedAt": "2026-08-22T18:37:22.279Z"
+    }
+  ]
+}
