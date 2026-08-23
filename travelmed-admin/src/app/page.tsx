@@ -212,7 +212,7 @@ export default function AdminDashboardPage() {
     revenueToday: orders.filter(o => o.status === 'Delivered').reduce((sum, o) => sum + o.amount, 0),
     ordersCount: orders.length,
     pendingOrders: orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length,
-    medicinesSold: medicines.reduce((sum, m) => sum + (m.stock < 100 ? (100 - m.stock) : 0), 24),
+    medicinesSold: medicines.reduce((sum, m) => sum + (m.stock < 100 ? (100 - m.stock) : 0), 0),
     activeConsultations: bookings.filter(b => b.status === 'Today').length,
     visitorsToday: 2418,
     conversionRate: 4.8,
