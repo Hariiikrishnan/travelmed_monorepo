@@ -23,7 +23,7 @@ services:
       context: ./travelmed-admin
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://api.travelmed.org
+        NEXT_PUBLIC_API_URL: http://187.127.170.239:5001
     container_name: travelmed_admin
     restart: always
     environment:
@@ -39,7 +39,7 @@ services:
       context: ./travelmed-website
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://api.travelmed.org
+        NEXT_PUBLIC_API_URL: http://187.127.170.239:5001
     container_name: travelmed_website
     restart: always
     environment:
