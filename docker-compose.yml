@@ -14,7 +14,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET:-production_secret_do_not_use}
     ports:
-      - "5000:5000"
+      - "5001:5000"
     networks:
       - travelmed_network
 
@@ -30,7 +30,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
     ports:
-      - "3000:3000"
+      - "3003:3000"
     networks:
       - travelmed_network
 
@@ -46,7 +46,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
     ports:
-      - "3001:3000" # Mapped to 3001 so it doesn't conflict with Admin
+      - "3004:3000" # Mapped to 3004 to avoid VPS port conflicts
     networks:
       - travelmed_network
 
