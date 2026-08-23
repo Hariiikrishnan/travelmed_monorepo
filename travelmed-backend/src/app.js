@@ -26,6 +26,9 @@ const app = express();
 app.use(helmet());
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
+  'https://travelmed.org',
+  'https://www.travelmed.org',
+  'https://admin.travelmed.org',
   'http://localhost:3001',
   'http://localhost:3002',
   'http://127.0.0.1:3000',
