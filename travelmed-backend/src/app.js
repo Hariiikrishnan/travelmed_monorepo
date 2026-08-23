@@ -29,6 +29,8 @@ const allowedOrigins = [
   'https://travelmed.org',
   'https://www.travelmed.org',
   'https://admin.travelmed.org',
+  'http://187.127.170.239:3003',
+  'http://187.127.170.239:3004',
   'http://localhost:3001',
   'http://localhost:3002',
   'http://127.0.0.1:3000',
