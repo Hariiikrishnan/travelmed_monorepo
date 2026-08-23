@@ -46,7 +46,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
     ports:
-      - "3004:3000" # Mapped to 3004 to avoid VPS port conflicts
+      - "8080:3000"
     networks:
       - travelmed_network
 
