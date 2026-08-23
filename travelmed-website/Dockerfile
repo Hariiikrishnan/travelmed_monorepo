@@ -22,6 +22,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/next.config.* ./
 COPY --from=builder /app/package*.json ./
