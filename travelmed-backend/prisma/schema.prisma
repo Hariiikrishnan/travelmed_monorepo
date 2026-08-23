@@ -1,0 +1,170 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("user")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  freeConsultationCount Int      @default(0)
+  orders                Order[]
+
+  @@map("users")
+}
+
+model Medicine {
+  id               String   @id
+  name             String
+  category         String
+  description      String
+  activeIngredient String
+  dosage           String
+  warning          String
+  sideEffects      String
+  fdaStatus        String
+  travelNote       String
+  compartment      String
+  alternative      String
+  symptoms         String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("medicines")
+}
+
+model Doctor {
+  id                String   @id
+  name              String
+  specialty         String
+  languages         String[]
+  experience        String
+  bio               String
+  rating            Float
+  reviewsCount      Int
+  availability      String
+  image             String
+  videoSimulatedUrl String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("doctors")
+}
+
+model TravelScenario {
+  id            String   @id
+  title         String
+  description   String
+  riskLevel     String
+  region        String
+  medicinesList String[]
+  instructions  String
+  icon          String
+  image         String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("travel_scenarios")
+}
+
+model Testimonial {
+  id        String   @id
+  name      String
+  location  String
+  tripType  String
+  quote     String
+  rating    Float
+  avatar    String
+  status    String   @default("Pending") // Pending, Approved, Rejected
+  reply     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonials")
+}
+
+model Order {
+  orderId           String      @id
+  userId            String?
+  user              User?       @relation(fields: [userId], references: [id])
+  status            String      @default("Processing") // Processing, Shipped, Out for Delivery, Delivered
+  trackingNumber    String
+  estimatedDelivery String
+  subtotal          Float
+  shippingCost      Float
+  total             Float
+  shippingFullName  String
+  shippingAddress   String
+  shippingCity      String
+  shippingCountry   String
+  shippingZipCode   String
+  shippingPhone     String?
+  paymentStatus     String      @default("Pending") // Pending, Paid, Failed
+  paymentId         String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  items             OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String  @id @default(uuid())
+  orderId        String
+  name           String
+  price          Float
+  quantity       Int
+  type           String // kit, addon
+  description    String?
+  sizeOption     String? // Solo, Couple, Family
+  pediatricAddon Boolean @default(false)
+  seniorAddon    Boolean @default(false)
+  order          Order   @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Coupon {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  discount    Int
+  type        String   @default("Percentage") // Percentage, Fixed
+  usages      Int      @default(0)
+  status      String   @default("Active") // Active, Inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("coupons")
+}
+
+model SupportTicket {
+  id        String   @id @default(uuid())
+  user      String
+  subject   String
+  message   String
+  status    String   @default("Open") // Open, Solved
+  priority  String   @default("Medium") // High, Medium, Low
+  reply     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("support_tickets")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  user      String   @default("System Admin")
+  action    String
+  changes   String
+  createdAt DateTime @default(now())
+
+  @@map("activity_logs")
+}

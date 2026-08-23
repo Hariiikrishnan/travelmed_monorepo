@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@variant dark (.never-match-dark-mode &);
+
+:root {
+  --background: #F8FAFC;
+  --foreground: #475569; /* Slate 600 body */
+  
+  --card: #FFFFFF;
+  --card-foreground: #475569;
+  
+  --border: #E2E8F0;
+  
+  --font-inter: var(--font-inter);
+  --font-heading: var(--font-heading);
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+
+  --color-primary: #0B4F8C;
+  --color-primary-dark: #083B69;
+  
+  --color-secondary: #14B8A6;
+  --color-secondary-dark: #0D9488;
+
+  --color-accent-green: #22C55E;
+  --color-accent-orange: #FF8C42;
+
+  --color-heading: #172B4D;
+  --color-body: #475569;
+  --color-surface: #FFFFFF;
+
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-heading);
+
+  /* Specific Design System Radius */
+  --radius-button: 14px;
+  --radius-input: 14px;
+  --radius-card: 24px;
+  --radius-hero-card: 32px;
+  --radius-badge: 999px;
+  --radius-image-card: 28px;
+  --radius-modal: 28px;
+
+  /* Custom Design System Shadows */
+  --shadow-card: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --shadow-hover: 0 25px 60px rgba(15, 23, 42, 0.12);
+  --shadow-floating-product: 0 40px 100px rgba(11, 79, 140, 0.18);
+  
+  --animate-marquee: marquee 30s linear infinite;
+  --z-index-modal: 1000;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+html, body {
+  scroll-behavior: smooth;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  color: var(--color-heading);
+  font-weight: 700;
+}
+
+/* ── Typography Scale (Plus Jakarta Sans + Inter) ─────────────────── */
+.text-hero   { font-family: var(--font-heading), system-ui, sans-serif; font-size: 64px; font-weight: 800; line-height: 1.05; }
+.text-h1     { font-family: var(--font-heading), system-ui, sans-serif; font-size: 56px; font-weight: 700; line-height: 1.1; }
+.text-h2     { font-family: var(--font-heading), system-ui, sans-serif; font-size: 48px; font-weight: 700; line-height: 1.1; }
+.text-h3     { font-family: var(--font-heading), system-ui, sans-serif; font-size: 36px; font-weight: 700; line-height: 1.15; }
+.text-h4     { font-family: var(--font-heading), system-ui, sans-serif; font-size: 28px; font-weight: 600; line-height: 1.2; }
+.text-h5     { font-family: var(--font-heading), system-ui, sans-serif; font-size: 24px; font-weight: 600; line-height: 1.25; }
+.text-card-title { font-family: var(--font-heading), system-ui, sans-serif; font-size: 20px; font-weight: 600; line-height: 1.3; }
+.text-body-lg    { font-family: var(--font-inter), system-ui, sans-serif; font-size: 18px; font-weight: 400; line-height: 1.6; }
+.text-body-md    { font-family: var(--font-inter), system-ui, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.6; }
+.text-small      { font-family: var(--font-inter), system-ui, sans-serif; font-size: 14px; font-weight: 400; line-height: 1.5; }
+.text-caption    { font-family: var(--font-inter), system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.4; }
+.text-price      { font-family: var(--font-heading), system-ui, sans-serif; font-size: 48px; font-weight: 800; line-height: 1; }
+.text-price-old  { font-family: var(--font-inter), system-ui, sans-serif;  font-size: 20px; font-weight: 500; line-height: 1; text-decoration: line-through; }
+.text-badge      { font-family: var(--font-inter), system-ui, sans-serif; font-size: 14px; font-weight: 700; }
+.text-nav        { font-family: var(--font-inter), system-ui, sans-serif; font-size: 16px; font-weight: 500; }
+.text-cta        { font-family: var(--font-inter), system-ui, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: 0px; }
+.font-heading    { font-family: var(--font-heading), system-ui, sans-serif; }
+.font-body       { font-family: var(--font-inter), system-ui, sans-serif; }
+
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+
+/* Gradients */
+.bg-hero-gradient {
+  background: linear-gradient(135deg, #F8FBFF 0%, #EEF8FF 45%, #FFFFFF 100%);
+}
+
+
+.bg-cta-gradient {
+  background: linear-gradient(90deg, #0B4F8C, #14B8A6);
+}
+
+.bg-card-gradient {
+  background: linear-gradient(180deg, #FFFFFF, #F8FAFC);
+}
+
+
+/* Premium Glass Card */
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
