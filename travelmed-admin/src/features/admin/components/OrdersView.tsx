@@ -3,6 +3,7 @@ import {
   ShoppingCart, Search, Printer, X, MapPin, User, FileText, Truck, 
   CreditCard, Clock, CheckCircle2, Filter, ClipboardCheck, Copy, Check
 } from 'lucide-react';
+import { generateInvoice, generateLabel } from '../utils/pdfGenerator';
 
 interface OrdersViewProps {
   orders: any[];
@@ -128,8 +129,12 @@ export default function OrdersView({
     }
   };
 
-  const mockPrint = (type: string, id: string) => {
-    alert(`Mocking Print: Generating and opening print dialog for ${type} (Order #${id}).`);
+  const handlePrint = (type: string, order: any) => {
+    if (type === 'Invoice') {
+      generateInvoice(order);
+    } else {
+      generateLabel(order);
+    }
   };
 
   return (
@@ -530,16 +535,16 @@ export default function OrdersView({
               {/* Drawer Actions Footer */}
               <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex gap-3.5 font-bold">
                 <button 
-                  onClick={() => mockPrint('Invoice', selectedOrder.id)}
+                  onClick={() => handlePrint('Invoice', selectedOrder)}
                   className="flex-1 flex justify-center items-center gap-1.5 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-[10px] text-slate-700 rounded-xl transition cursor-pointer"
                 >
-                  Print Invoice
+                  <Printer className="w-3.5 h-3.5" /> Print Invoice
                 </button>
                 <button 
-                  onClick={() => mockPrint('Label', selectedOrder.id)}
+                  onClick={() => handlePrint('Label', selectedOrder)}
                   className="flex-1 flex justify-center items-center gap-1.5 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-[10px] text-slate-700 rounded-xl transition cursor-pointer"
                 >
-                  Print Label
+                  <Printer className="w-3.5 h-3.5" /> Print Label
                 </button>
               </div>
 
