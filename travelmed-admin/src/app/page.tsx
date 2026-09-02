@@ -60,6 +60,7 @@ export default function AdminDashboardPage() {
     try {
       // 1. Fetch Medicines
       const medRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/medicines`);
+      if (medRes.status === 401) return handleLogout();
       const medBody = await medRes.json();
       if (medRes.ok) setMedicines(medBody.data);
 
@@ -81,6 +82,7 @@ export default function AdminDashboardPage() {
       const ordRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/orders`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
+      if (ordRes.status === 401) return handleLogout();
       const ordBody = await ordRes.json();
       if (ordRes.ok) {
         const formattedOrders = ordBody.data.map((o: any) => ({
