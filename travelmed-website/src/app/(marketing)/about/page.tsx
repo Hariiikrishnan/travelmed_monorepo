@@ -29,7 +29,7 @@ export default function AboutPage() {
 
   return (
     <div className="flex flex-col min-h-screen font-sans bg-neutral-50 dark:bg-neutral-950">
-      
+
       {/* Hero Mission */}
       <section className="py-16 md:py-24 bg-white dark:bg-neutral-900 border-b border-border/40 relative">
         <div className="absolute inset-0 bg-mesh opacity-10" />
@@ -86,7 +86,7 @@ export default function AboutPage() {
       <section className="py-16 bg-white dark:bg-neutral-900 border-y border-border/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
+
             <div className="lg:col-span-6 space-y-6">
               <Badge variant="warning">Why We Exist</Badge>
               <h2 className="text-3xl font-extrabold tracking-tight font-heading leading-tight">
@@ -96,7 +96,7 @@ export default function AboutPage() {
                 When you fall ill in a foreign city or remote village, finding reliable treatments is complex. Local pharmacies sell unfamiliar brands, language barriers make symptoms hard to describe, and hospital queues eat into valuable travel days.
               </p>
               <p className="text-xs md:text-sm text-neutral-500 leading-relaxed">
-                Travel Med integrates physical and digital healthcare. We pack exactly what you need in an intuitive, color-coded pouch, backed by US/EU doctors ready to advise in seconds.
+                Travel Med integrates physical and digital healthcare. We pack exactly what you need in an intuitive, color-coded pouch, backed by  doctors ready to advise in seconds.
               </p>
               <div className="pt-2">
                 <Link href="/buy">
@@ -124,7 +124,7 @@ export default function AboutPage() {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
+
             <div className="lg:col-span-5">
               <Card hoverEffect={false} className="border-none shadow-none rounded-3xl overflow-hidden aspect-square relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -18,7 +18,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "Travel Med - Premium Travel Healthcare & Medical Kits",
-  description: "Your Health. Your Journey. Always Protected. The premium international travel medical kit combined with instant US/EU doctor consultations worldwide.",
+  description: "Your Health. Your Journey. Always Protected. The premium international travel medical kit combined with instant  doctor consultations worldwide.",
   keywords: ["travel medicine", "travel clinic", "travel health kit", "first aid kit", "online travel doctor", "doctor consultation abroad"],
   openGraph: {
     title: "Travel Med - Premium Travel Healthcare & Medical Kits",

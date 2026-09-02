@@ -29,7 +29,7 @@ export const ProblemSection: React.FC = () => {
   const solutions = [
     {
       title: "Clinical-grade Blister Packs",
-      desc: "Pre-sorted US/EU approved medications, fully standardized with active ingredient summaries."
+      desc: "Pre-sorted  approved medications, fully standardized with active ingredient summaries."
     },
     {
       title: "Color-Coded Symptom Mapping",
@@ -44,7 +44,7 @@ export const ProblemSection: React.FC = () => {
   return (
     <section className="py-20 bg-neutral-50 dark:bg-neutral-950 font-sans overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <Badge variant="warning">The Travel Reality</Badge>
@@ -58,7 +58,7 @@ export const ProblemSection: React.FC = () => {
 
         {/* Comparison Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-stretch">
-          
+
           {/* Problem Block */}
           <motion.div
             variants={scrollReveal}

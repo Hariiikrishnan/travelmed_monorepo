@@ -63,7 +63,7 @@ export const Footer: React.FC = () => {
               </span>
             </Link>
             <p className="text-sm text-slate-600 leading-relaxed max-w-sm">
-              Your Health. Your Journey. Always Protected. The premium travel medical kit combined with instant US/EU doctor teleconsultation worldwide.
+              Your Health. Your Journey. Always Protected. The premium travel medical kit combined with instant  doctor teleconsultation worldwide.
             </p>
             <div className="flex flex-col gap-2 pt-2 text-xs md:text-sm text-slate-500">
               <div className="flex items-center gap-2">

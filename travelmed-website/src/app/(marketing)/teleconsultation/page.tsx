@@ -36,10 +36,10 @@ export default function TeleconsultationPage() {
 
   const symptoms = ['Stomach & GI (Bali belly)', 'Fever & Pain (Altitude/Headache)', 'Severe Allergy / Rash', 'Wound care / Scraping'];
   const destinations = ['Southeast Asia & Pacific', 'Europe & UK', 'Americas & Latin', 'Africa & Middle East'];
-  
+
   const handleSymptomSelect = (sym: string) => {
     setSymptom(sym);
-    
+
     if (doctors.length > 0) {
       // Choose recommended doctor based on symptom
       if (sym.includes('Stomach')) {
@@ -50,7 +50,7 @@ export default function TeleconsultationPage() {
         setSelectedDoctor(doctors.find(d => d.id === 'doc-elena') || doctors[0]);
       }
     }
-    
+
     setStep(2);
   };
 
@@ -87,20 +87,20 @@ export default function TeleconsultationPage() {
 
   return (
     <div className="flex flex-col min-h-screen font-sans bg-neutral-50 dark:bg-neutral-950">
-      
+
       {/* Hero section */}
       <section className="py-12 md:py-20 bg-white dark:bg-neutral-900 border-b border-border/40 relative">
         <div className="absolute inset-0 bg-mesh opacity-10" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4 relative z-1">
-          <Badge variant="primary" className="px-3 py-1 flex items-center gap-1.5 justify-center w-fit mx-auto">
+          {/* <Badge variant="primary" className="px-3 py-1 flex items-center gap-1.5 justify-center w-fit mx-auto">
             <Clock className="h-4 w-4 text-secondary animate-pulse" />
             <span>Average Doctor Response Latency: &lt; 2 minutes</span>
-          </Badge>
-          
+          </Badge> */}
+
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight font-heading max-w-2xl mx-auto">
             Global Video Consultations
           </h1>
-          
+
           <p className="text-sm md:text-base text-neutral-500 max-w-xl mx-auto">
             Connect immediately to board-certified physicians from your phone. Triage symptoms, verify localized medication guidelines, and protect your travel continuity.
           </p>
@@ -110,7 +110,7 @@ export default function TeleconsultationPage() {
       {/* Booking Triage Flow Dashboard */}
       <section className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           <div className="text-center mb-8">
             <span className="text-[10px] md:text-xs font-bold text-neutral-400 uppercase tracking-widest block">
               Interactive Consultation Triage Simulator
@@ -119,7 +119,7 @@ export default function TeleconsultationPage() {
 
           <Card hoverEffect={false} className="p-8 md:p-12 border-border bg-card shadow-lg relative min-h-[400px] flex flex-col justify-between overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-accent" />
-            
+
             <AnimatePresence mode="wait">
               {step === 1 && (
                 /* Step 1: Select symptoms */
@@ -135,7 +135,7 @@ export default function TeleconsultationPage() {
                     <h3 className="text-2xl font-black font-heading tracking-tight">What symptoms are you experiencing?</h3>
                     <p className="text-xs md:text-sm text-neutral-400">Select the primary health concern for triage recommendation.</p>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {symptoms.map((s) => (
                       <button
@@ -258,7 +258,7 @@ export default function TeleconsultationPage() {
                   <div className="p-4 bg-accent-light text-accent rounded-full animate-bounce">
                     <Check className="h-8 w-8" />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Badge variant="accent">Appointment Confirmed</Badge>
                     <h3 className="text-2xl md:text-3xl font-black font-heading tracking-tight">Your Video Call is Scheduled!</h3>
@@ -302,7 +302,7 @@ export default function TeleconsultationPage() {
       {/* Doctor Registry grid */}
       <section className="py-16 bg-white dark:bg-neutral-900 border-t border-border/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <Badge variant="primary">Board Advisory Physicians</Badge>
             <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight font-heading">

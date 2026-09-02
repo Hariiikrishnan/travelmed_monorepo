@@ -424,7 +424,7 @@ export default function OrdersView({
                       <span className="text-[10px] uppercase tracking-wider">Shipping Coordinates</span>
                     </div>
                     <p className="text-slate-700 leading-relaxed font-bold text-[11px]">
-                      {selectedOrder.shippingAddress || '102, Green Glen Layout, Outer Ring Road, Bellandur, Bengaluru, Karnataka, 560103'}
+                      {selectedOrder.shippingAddress}
                     </p>
                   </div>
 

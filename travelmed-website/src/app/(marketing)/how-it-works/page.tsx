@@ -61,12 +61,12 @@ export default function HowItWorksPage() {
     {
       id: 'chapter-6',
       badge: 'Doctor Video Call',
-      title: 'US/EU Doctor Consultation',
+      title: ' Doctor Consultation',
       subtitle: 'Instant video connection.',
       description: 'Connect instantly to a board-certified physician in under 3 minutes. The doctor reviews your condition, advises on self-medicating, and assists with importing details.',
       icon: <Video className="h-5 w-5" />,
       image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=600&h=400',
-      benefits: ['Average wait < 3 minutes', 'Licensed US/EU doctors', 'Multilingual support']
+      benefits: ['Average wait < 3 minutes', 'Licensed  doctors', 'Multilingual support']
     },
     {
       id: 'chapter-7',
@@ -82,7 +82,7 @@ export default function HowItWorksPage() {
 
   return (
     <div className="flex flex-col min-h-screen font-sans bg-neutral-50 dark:bg-neutral-950">
-      
+
       {/* Header */}
       <section className="py-12 md:py-20 bg-white dark:bg-neutral-900 border-b border-border/40 relative">
         <div className="absolute inset-0 bg-mesh opacity-10" />

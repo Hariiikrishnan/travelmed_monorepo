@@ -24,7 +24,7 @@ export const ComparisonTable: React.FC = () => {
       travelmed: true,
       hotel: false, // "Can call local clinic"
       pharmacy: false,
-      details: "Consult US/EU physicians in under 3 minutes via QR scan."
+      details: "Consult  physicians in under 3 minutes via QR scan."
     },
     {
       name: "Import Compliance Guidance",
@@ -52,7 +52,7 @@ export const ComparisonTable: React.FC = () => {
   return (
     <section className="py-20 bg-neutral-50 dark:bg-neutral-950 font-sans overflow-hidden border-t border-border/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <Badge variant="primary">Standard Comparison</Badge>
@@ -83,21 +83,21 @@ export const ComparisonTable: React.FC = () => {
                       <span className="font-bold text-neutral-800 dark:text-neutral-100">{f.name}</span>
                       <p className="text-[11px] text-neutral-400 font-medium leading-relaxed">{f.details}</p>
                     </td>
-                    
+
                     {/* Travelmed */}
                     <td className="p-5 md:p-6 text-center">
                       <div className="inline-flex p-1.5 bg-primary-light text-primary rounded-full">
                         <Check className="h-4.5 w-4.5" />
                       </div>
                     </td>
-                    
+
                     {/* Hotel */}
                     <td className="p-5 md:p-6 text-center">
                       <div className="inline-flex p-1.5 bg-red-100 dark:bg-red-950/20 text-red-500 rounded-full">
                         <X className="h-4.5 w-4.5" />
                       </div>
                     </td>
-                    
+
                     {/* Pharmacy */}
                     <td className="p-5 md:p-6 text-center">
                       {f.pharmacy ? (

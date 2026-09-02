@@ -89,6 +89,7 @@ export default function AdminDashboardPage() {
           email: o.shippingEmail || 'customer@travelmed.com',
           phone: o.shippingPhone || 'N/A',
           country: o.shippingCountry,
+          shippingAddress: `${o.shippingAddress}, ${o.shippingCity}, ${o.shippingCountry} - ${o.shippingZipCode}`,
           payment: 'Razorpay',
           shipping: 'Standard',
           status: o.status,
