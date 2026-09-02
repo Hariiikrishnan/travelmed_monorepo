@@ -90,9 +90,8 @@ export const generateInvoice = (order: any) => {
   doc.setFont('helvetica', 'italic');
   doc.text('This is a computer-generated invoice and requires no physical signature.', 105, 280, { align: 'center' });
 
-  // Output
-  doc.save(`invoice_${order.id}.pdf`);
-  // Open in new tab for print
+  // Output for Direct Print
+  doc.autoPrint();
   const pdfBlob = doc.output('blob');
   const finalObjUrl = URL.createObjectURL(pdfBlob);
   window.open(finalObjUrl);
@@ -172,8 +171,8 @@ export const generateLabel = (order: any) => {
   doc.setFontSize(10);
   doc.text(order.tracking || 'TRK-PENDING', 50.8, 136, { align: 'center' });
 
-  // Output
-  doc.save(`shipping_label_${order.id}.pdf`);
+  // Output for Direct Print
+  doc.autoPrint();
   const pdfBlob = doc.output('blob');
   const finalObjUrl = URL.createObjectURL(pdfBlob);
   window.open(finalObjUrl);
