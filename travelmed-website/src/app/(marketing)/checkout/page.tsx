@@ -75,14 +75,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // Check auth and load Razorpay Checkout script on mount
   useEffect(() => {
-    const token = localStorage.getItem('travelmed_client_token');
-    if (!token) {
-      router.push(`/login?redirect=${encodeURIComponent('/checkout')}`);
-      return;
-    }
-
     const name = localStorage.getItem('travelmed_client_name');
     if (name) {
       setForm(prev => ({

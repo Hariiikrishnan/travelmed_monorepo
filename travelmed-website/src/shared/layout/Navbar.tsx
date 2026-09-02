@@ -29,19 +29,7 @@ export const Navbar: React.FC = () => {
   }, []);
 
   const cartCount = getCartCount();
-  const [clientToken, setClientToken] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    setClientToken(localStorage.getItem('travelmed_client_token'));
-  }, []);
-
-  const handleSignOut = () => {
-    localStorage.removeItem('travelmed_client_token');
-    setClientToken(null);
-    window.location.reload();
-  };
 
   return (
     <>
@@ -120,43 +108,14 @@ export const Navbar: React.FC = () => {
                 aria-label="Open cart"
               >
                 <ShoppingBag className="h-4.5 w-4.5" />
-                {mounted && cartCount > 0 && (
+                {cartCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 h-4.5 w-4.5 flex items-center justify-center rounded-full bg-primary text-white text-[9px] font-extrabold">
                     {cartCount}
                   </span>
                 )}
               </button>
 
-              {/* Customer Account Button */}
-              {mounted ? (
-                clientToken ? (
-                  <div className="hidden sm:flex items-center gap-2">
-                    <Link
-                      href="/profile"
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition cursor-pointer whitespace-nowrap"
-                    >
-                      <User className="h-3.5 w-3.5" />
-                      Profile
-                    </Link>
-                    <button
-                      onClick={handleSignOut}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 text-rose-600 text-xs font-bold hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition cursor-pointer whitespace-nowrap"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                ) : (
-                  <Link
-                    href="/login"
-                    className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition cursor-pointer whitespace-nowrap"
-                  >
-                    <User className="h-3.5 w-3.5" />
-                    Sign In
-                  </Link>
-                )
-              ) : (
-                <div className="hidden sm:flex h-9 w-[190px] bg-slate-100 rounded-xl animate-pulse" />
-              )}
+
 
               {/* Buy Now CTA */}
               <Link href="/buy" className="hidden sm:block">

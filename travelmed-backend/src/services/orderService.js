@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { NotFoundError } from '../utils/errors.js';
+import twilioService from './twilioService.js';
 
 export const createOrder = async ({ shippingAddress, items, paymentStatus, paymentId, couponCode }, userId) => {
   // 1. Calculate costs
@@ -72,25 +73,10 @@ export const createOrder = async ({ shippingAddress, items, paymentStatus, payme
     }
   });
 
-  // 5. Add Free Consultations for Kit Purchases (2 per kit unit)
-  if (userId) {
-    const kitCount = items.reduce((acc, item) => {
-      if (item.type === 'kit' || item.name.toLowerCase().includes('kit')) {
-        return acc + item.quantity;
-      }
-      return acc;
-    }, 0);
-
-    if (kitCount > 0) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          freeConsultationCount: {
-            increment: kitCount * 2
-          }
-        }
-      });
-    }
+  // 5. Send Order SMS via Twilio using order's shipping phone
+  if (order.shippingPhone) {
+    const successMsg = `Thank you for your order! Your TravelMed order ${orderId} has been successfully placed. Status: ${order.status}. Estimated delivery: ${order.estimatedDelivery}.`;
+    await twilioService.sendOrderSms(order.shippingPhone, successMsg);
   }
 
   return order;
@@ -129,13 +115,20 @@ export const getAllOrders = async () => {
 
 export const updateOrderStatus = async (orderId, status) => {
   // Check if exists
-  await getOrderById(orderId);
+  const existingOrder = await getOrderById(orderId);
 
-  return await prisma.order.update({
+  const updatedOrder = await prisma.order.update({
     where: { orderId },
     data: { status },
     include: {
       items: true
     }
   });
+
+  if (updatedOrder.shippingPhone) {
+    const updateMsg = `Hello! Your TravelMed order ${updatedOrder.orderId} status has been updated to: ${status}.`;
+    await twilioService.sendOrderSms(updatedOrder.shippingPhone, updateMsg);
+  }
+
+  return updatedOrder;
 };

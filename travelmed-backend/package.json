@@ -22,6 +22,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "razorpay": "^2.9.8",
+    "twilio": "^6.1.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
