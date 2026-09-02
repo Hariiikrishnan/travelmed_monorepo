@@ -55,8 +55,8 @@ export const generateInvoice = (order: any) => {
     index + 1,
     m.name,
     m.qty,
-    `INR ${Number(m.price).toLocaleString()}`,
-    `INR ${(m.price * m.qty).toLocaleString()}`
+    `Rs. ${Number(m.price).toLocaleString()}`,
+    `Rs. ${(m.price * m.qty).toLocaleString()}`
   ]);
 
   autoTable(doc, {
@@ -82,7 +82,7 @@ export const generateInvoice = (order: any) => {
   doc.setFont('helvetica', 'bold');
   doc.text('GRAND TOTAL:', 130, finalY);
   doc.setTextColor(11, 79, 140);
-  doc.text(`INR ${Number(order.amount).toLocaleString()}`, 160, finalY);
+  doc.text(`Rs. ${Number(order.amount).toLocaleString()}`, 195, finalY, { align: 'right' });
 
   // Footer Disclaimer
   doc.setTextColor(150, 150, 150);
