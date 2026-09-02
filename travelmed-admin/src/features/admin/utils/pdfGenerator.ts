@@ -1,12 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-// Type extension for autoTable plugin
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: any;
-  }
-}
+import autoTable from 'jspdf-autotable';
 
 export const generateInvoice = (order: any) => {
   const doc = new jsPDF();
@@ -66,7 +59,7 @@ export const generateInvoice = (order: any) => {
     `INR ${(m.price * m.qty).toLocaleString()}`
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 125,
     head: [['#', 'Item Description', 'Qty', 'Unit Price', 'Total']],
     body: tableData,
