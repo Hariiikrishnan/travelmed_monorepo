@@ -212,7 +212,7 @@ export default function AdminDashboardPage() {
 
   // Synchronize stats based on datasets
   const stats = {
-    revenueToday: orders.filter(o => o.status === 'Delivered').reduce((sum, o) => sum + o.amount, 0),
+    revenueToday: orders.filter(o => o.status !== 'Cancelled' && o.status !== 'Refunded').reduce((sum, o) => sum + o.amount, 0),
     ordersCount: orders.length,
     pendingOrders: orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length,
     medicinesSold: medicines.reduce((sum, m) => sum + (m.stock < 100 ? (100 - m.stock) : 0), 0),
