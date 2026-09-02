@@ -171,9 +171,10 @@ export default function OrdersView({
               className="bg-transparent text-slate-600 focus:outline-none border-none cursor-pointer"
             >
               <option value="all">All Statuses</option>
-              <option value="Pending">Pending Fulfillment</option>
+              <option value="Processing">Processing</option>
+              <option value="Shipped">Shipped</option>
+              <option value="Out for Delivery">Out for Delivery</option>
               <option value="Delivered">Delivered</option>
-              <option value="Cancelled">Cancelled</option>
               <option value="Refunded">Refunded</option>
             </select>
           </div>
@@ -352,9 +353,10 @@ export default function OrdersView({
                   <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider text-left">Fulfillment Status Toggles</span>
                   <div className="bg-slate-200/50 border border-slate-300/40 p-1 rounded-xl flex gap-1 text-[11px] font-bold">
                     {[
-                      { key: 'Pending', label: 'Pending', color: 'bg-amber-500 text-slate-950 font-extrabold shadow-sm' },
-                      { key: 'Delivered', label: 'Delivered', color: 'bg-emerald-500 text-white font-extrabold shadow-sm' },
-                      { key: 'Cancelled', label: 'Cancelled', color: 'bg-slate-600 text-white font-extrabold shadow-sm' }
+                      { key: 'Processing', label: 'Processing', color: 'bg-amber-500 text-slate-950 font-extrabold shadow-sm' },
+                      { key: 'Shipped', label: 'Shipped', color: 'bg-blue-500 text-white font-extrabold shadow-sm' },
+                      { key: 'Out for Delivery', label: 'Out for Delivery', color: 'bg-indigo-500 text-white font-extrabold shadow-sm' },
+                      { key: 'Delivered', label: 'Delivered', color: 'bg-emerald-500 text-white font-extrabold shadow-sm' }
                     ].map(statusOption => (
                       <button 
                         key={statusOption.key}
