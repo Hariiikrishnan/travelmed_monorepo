@@ -1,5 +1,6 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import prisma from '../config/database.js';
 
 // Initialize Razorpay conditionally (allows dummy mode)
 const getRazorpayInstance = () => {
@@ -18,13 +19,30 @@ const getRazorpayInstance = () => {
 
 export const createRazorpayOrder = async (req, res, next) => {
   try {
-    const { amount } = req.body; // Expect amount in Rupees (e.g. 2650)
-    if (!amount) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'Payment amount is required.'
-      });
+    const { items, couponCode } = req.body;
+    if (!items || !items.length) {
+      return res.status(400).json({ status: 'fail', message: 'Cart items are required to generate order.' });
     }
+
+    // 1. Calculate base subtotal securely on server
+    let subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // 2. Validate and apply coupon from secure Postgres DB
+    if (couponCode) {
+      const coupon = await prisma.coupon.findUnique({ where: { code: String(couponCode).toUpperCase() } });
+      if (coupon && coupon.status === 'Active') {
+        if (coupon.type === 'Percentage') {
+          subtotal = subtotal - ((subtotal * coupon.discount) / 100);
+        } else {
+          subtotal = subtotal - coupon.discount;
+        }
+        if (subtotal < 0) subtotal = 0;
+      }
+    }
+
+    // 3. Add exact shipping logic matching DB
+    const shippingCost = subtotal >= 2000 ? 0 : 150;
+    const finalAmount = subtotal + shippingCost;
 
     const razorpay = getRazorpayInstance();
 
@@ -34,7 +52,7 @@ export const createRazorpayOrder = async (req, res, next) => {
         success: true,
         data: {
           id: 'order_dummy_' + Math.random().toString(36).substring(2, 9),
-          amount: amount * 100, // in paise
+          amount: finalAmount * 100, // in paise
           currency: 'INR',
           isDummy: true
         }
@@ -42,7 +60,7 @@ export const createRazorpayOrder = async (req, res, next) => {
     }
 
     const options = {
-      amount: Math.round(amount * 100), // convert to paise
+      amount: Math.round(finalAmount * 100), // convert to paise securely
       currency: 'INR',
       receipt: 'rcpt_' + Math.floor(Math.random() * 1000000)
     };

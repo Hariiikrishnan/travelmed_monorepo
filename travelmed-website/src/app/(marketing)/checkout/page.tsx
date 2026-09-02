@@ -100,13 +100,16 @@ export default function CheckoutPage() {
 
     setLoading(true);
     try {
-      // 1. Ask backend to create a Razorpay Order
+      // 1. Ask backend to accurately assess coupon reduction and create Razorpay Order
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/payments/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ amount: total }),
+        body: JSON.stringify({ 
+          items: cartItems.map(item => ({...item, quantity: item.quantity })), 
+          couponCode: appliedCoupon?.code 
+        }),
       });
 
       const body = await res.json();

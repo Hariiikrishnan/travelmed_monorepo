@@ -19,7 +19,7 @@ export const createOrder = async ({ shippingAddress, items, paymentStatus, payme
     }
   }
 
-  const shippingCost = subtotal > 150 ? 0 : 15;
+  const shippingCost = subtotal >= 2000 ? 0 : 150;
   const total = subtotal + shippingCost;
 
   // 2. Generate random order ID and tracking number
