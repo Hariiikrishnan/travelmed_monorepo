@@ -40,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
-      <body
+      <body suppressHydrationWarning
         className={`${inter.variable} ${plusJakartaSans.variable} antialiased flex flex-col min-h-screen bg-background text-foreground`}
       >
         <CartProvider>

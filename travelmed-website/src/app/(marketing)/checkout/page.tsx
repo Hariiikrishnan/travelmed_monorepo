@@ -122,7 +122,7 @@ export default function CheckoutPage() {
       // 2. Dummy Payment Handling
       if (rzpOrder.isDummy) {
         const paymentId = 'pay_dummy_' + Math.random().toString(36).substring(2, 9);
-        await placeOrder(form, { paymentId, paymentStatus: 'Paid' });
+        await placeOrder(form, { paymentId, paymentStatus: 'Paid' }, appliedCoupon?.code);
         
         setForm({
           fullName: '',
