@@ -10,7 +10,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 const navItems = [
   { name: 'Home', path: '/' },
   { name: 'Buy Kit', path: '/buy' },
-  { name: "What's Inside", path: '/whats-inside' },
   { name: 'How It Works', path: '/how-it-works' },
   { name: 'Teleconsultation', path: '/teleconsultation' },
   { name: 'About', path: '/about' },

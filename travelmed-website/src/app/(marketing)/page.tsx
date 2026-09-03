@@ -493,16 +493,6 @@ export default function HomePage() {
                 >
                   <ShoppingBag className="h-5 w-5" /> Buy Now
                 </button>
-                <Link href="/#whats-included" className="inline-block">
-                  <button
-                    className="border border-slate-300 hover:border-slate-400 bg-gradient-to-br from-white to-slate-50/50 hover:from-slate-50 hover:to-slate-100 text-slate-800 text-[18px] font-semibold h-13 px-8 rounded-[14px] transition-all duration-300 gap-2 flex items-center justify-center active:scale-95 cursor-pointer"
-                  >
-                    View What's Inside
-                    <svg className="h-5 w-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 13l-7 7-7-7m7 7V3" />
-                    </svg>
-                  </button>
-                </Link>
               </div>
 
               {/* Mini trust strip */}
@@ -689,12 +679,6 @@ export default function HomePage() {
                 </div>
 
                 <div className="pt-2">
-                  <Link href="/whats-inside" className="w-full">
-                    <Button variant="outline" fullWidth size="md" className="flex items-center justify-center gap-1.5 bg-gradient-to-br from-white to-slate-50/50 hover:from-slate-50 hover:to-slate-100 dark:from-neutral-900 dark:to-neutral-950">
-                      <span>View Full Medicine List</span>
-                      <ChevronRight className="h-4 w-4 rotate-90" />
-                    </Button>
-                  </Link>
                 </div>
 
               </Card>

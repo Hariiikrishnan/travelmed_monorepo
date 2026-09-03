@@ -20,7 +20,6 @@ export const Footer: React.FC = () => {
 
   const productLinks = [
     { name: 'Buy Travel Kit', path: '/buy' },
-    { name: "What's Inside", path: '/whats-inside' },
     { name: 'How It Works', path: '/how-it-works' },
     { name: 'Teleconsultation', path: '/teleconsultation' },
   ];

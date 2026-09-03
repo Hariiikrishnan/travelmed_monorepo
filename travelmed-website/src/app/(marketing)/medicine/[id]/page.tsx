@@ -42,8 +42,8 @@ export default function MedicineDetailPage({ params }: PageProps) {
       <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4 font-sans">
         <h3 className="text-xl font-bold">Medicine Record Not Found</h3>
         <p className="text-xs text-neutral-400">The requested medication is not registered in our travel inventory.</p>
-        <Link href="/whats-inside">
-          <Button size="sm">Back to Explorer</Button>
+        <Link href="/">
+          <Button size="sm">Back to Home</Button>
         </Link>
       </div>
     );
@@ -54,9 +54,9 @@ export default function MedicineDetailPage({ params }: PageProps) {
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         
         <div className="mb-6">
-          <Link href="/whats-inside" className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-400 hover:text-foreground">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-400 hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Inventory Explorer</span>
+            <span>Back to Home</span>
           </Link>
         </div>
 

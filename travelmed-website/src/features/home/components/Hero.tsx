@@ -65,11 +65,6 @@ export const Hero: React.FC = () => {
                   Configure Your Kit
                 </Button>
               </Link>
-              <Link href="/whats-inside">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                  Explore What's Inside
-                </Button>
-              </Link>
             </motion.div>
 
             {/* Quick checks */}
