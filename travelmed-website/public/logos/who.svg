@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" fill="none">
+  <!-- WHO Emblem Graphic -->
+  <g transform="translate(5, 5)">
+    <!-- Globe Circle -->
+    <circle cx="30" cy="30" r="28" fill="#0093D5" fill-opacity="0.08" stroke="#0093D5" stroke-width="1.8"/>
+    <!-- Grid -->
+    <circle cx="30" cy="30" r="20" stroke="#0093D5" stroke-width="1.2" fill="none"/>
+    <ellipse cx="30" cy="30" rx="20" ry="8" stroke="#0093D5" stroke-width="1" fill="none"/>
+    <line x1="30" y1="10" x2="30" y2="50" stroke="#0093D5" stroke-width="1.2"/>
+    <line x1="10" y1="30" x2="50" y2="30" stroke="#0093D5" stroke-width="1.2"/>
+    <!-- Rod & Snake -->
+    <path d="M 30 8 L 30 52" stroke="#0093D5" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 30 12 C 24 16 36 22 30 28 C 24 34 36 40 30 46 C 26 50 34 52 30 52" stroke="#0093D5" stroke-width="2" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- WHO Typography -->
+  <text x="72" y="38" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" fill="#0093D5" letter-spacing="0.5">WHO</text>
+  <text x="73" y="52" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="7.5" fill="#475569" letter-spacing="0.8">WORLD HEALTH ORGANIZATION</text>
+</svg>

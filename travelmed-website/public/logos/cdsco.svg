@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" fill="none">
+  <!-- CDSCO Emblem Graphic -->
+  <g transform="translate(5, 5)">
+    <circle cx="30" cy="30" r="28" fill="#0284C7" fill-opacity="0.08" stroke="#0284C7" stroke-width="1.8"/>
+    <path d="M 30 12 C 26 12 24 15 24 18 L 24 24 L 36 24 L 36 18 C 36 15 34 12 30 12 Z" fill="#0284C7"/>
+    <circle cx="30" cy="31" r="7" stroke="#0284C7" stroke-width="1.5" fill="none"/>
+    <line x1="30" y1="24" x2="30" y2="38" stroke="#0284C7" stroke-width="1"/>
+    <line x1="23" y1="31" x2="37" y2="31" stroke="#0284C7" stroke-width="1"/>
+    <path d="M 16 40 C 20 48 40 48 44 40" stroke="#0D9488" stroke-width="2" fill="none"/>
+  </g>
+
+  <!-- CDSCO Typography -->
+  <text x="72" y="37" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="26" fill="#0284C7" letter-spacing="0.5">CDSCO</text>
+  <text x="73" y="51" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="6.8" fill="#475569" letter-spacing="0.5">CENTRAL DRUGS STANDARD CONTROL</text>
+</svg>

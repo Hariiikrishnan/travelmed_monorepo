@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" fill="none">
+  <!-- GMP Emblem Graphic -->
+  <g transform="translate(5, 5)">
+    <circle cx="30" cy="30" r="28" fill="#1E3A8A" fill-opacity="0.08" stroke="#1E3A8A" stroke-width="1.8"/>
+    <circle cx="30" cy="30" r="23" stroke="#059669" stroke-width="1.5" stroke-dasharray="4 2" fill="none"/>
+    <text x="30" y="34" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="14" fill="#1E3A8A">GMP</text>
+    <text x="30" y="43" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="5" fill="#059669">CERTIFIED</text>
+  </g>
+
+  <!-- GMP Typography -->
+  <text x="72" y="38" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" fill="#1E3A8A" letter-spacing="0.5">GMP</text>
+  <text x="73" y="52" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="7.5" fill="#059669" letter-spacing="0.8">GOOD MANUFACTURING PRACTICE</text>
+</svg>

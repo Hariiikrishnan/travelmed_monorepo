@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" fill="none">
+  <!-- DCGI Emblem Graphic -->
+  <g transform="translate(5, 5)">
+    <circle cx="30" cy="30" r="28" fill="#4338CA" fill-opacity="0.08" stroke="#4338CA" stroke-width="1.8"/>
+    <rect x="26" y="14" width="8" height="32" rx="2" fill="#4338CA"/>
+    <rect x="14" y="26" width="32" height="8" rx="2" fill="#4338CA"/>
+    <circle cx="30" cy="30" r="10" fill="white" stroke="#D97706" stroke-width="1.5"/>
+    <text x="30" y="34" text-anchor="middle" font-family="Georgia, serif" font-weight="bold" font-size="10" fill="#D97706">Rx</text>
+  </g>
+
+  <!-- DCGI Typography -->
+  <text x="72" y="37" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" fill="#4338CA" letter-spacing="0.5">DCGI</text>
+  <text x="73" y="51" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="6.8" fill="#D97706" letter-spacing="0.5">DRUGS CONTROLLER GENERAL INDIA</text>
+</svg>
