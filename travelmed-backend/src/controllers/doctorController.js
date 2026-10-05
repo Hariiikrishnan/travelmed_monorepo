@@ -1,6 +1,22 @@
+import crypto from 'crypto';
 import * as doctorService from '../services/doctorService.js';
+import { doctorSchema } from '../validators/doctorValidator.js';
 
+/** Public: active doctors only. */
 export const getAll = async (req, res, next) => {
+  try {
+    const doctors = (await doctorService.getAll()).filter((d) => d.status !== 'Inactive');
+    return res.status(200).json({
+      success: true,
+      data: doctors
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Admin: every doctor including inactive. */
+export const getAllAdmin = async (req, res, next) => {
   try {
     const doctors = await doctorService.getAll();
     return res.status(200).json({
@@ -27,7 +43,14 @@ export const getById = async (req, res, next) => {
 
 export const create = async (req, res, next) => {
   try {
-    const doctor = await doctorService.create(req.body);
+    const data = doctorSchema.parse(req.body);
+    const doctor = await doctorService.create({
+      id: 'doc-' + crypto.randomBytes(4).toString('hex'),
+      rating: 0,
+      reviewsCount: 0,
+      videoSimulatedUrl: '',
+      ...data,
+    });
     return res.status(201).json({
       success: true,
       message: 'Doctor created successfully',
@@ -41,7 +64,7 @@ export const create = async (req, res, next) => {
 export const update = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const doctor = await doctorService.update(id, req.body);
+    const doctor = await doctorService.update(id, doctorSchema.parse(req.body));
     return res.status(200).json({
       success: true,
       message: 'Doctor updated successfully',

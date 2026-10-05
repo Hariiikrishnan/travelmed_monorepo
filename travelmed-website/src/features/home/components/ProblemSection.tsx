@@ -37,7 +37,7 @@ export const ProblemSection: React.FC = () => {
     },
     {
       title: "Digital Triage Support",
-      desc: "Scan the emergency QR on your pouch to connect instantly to a board-certified physician."
+      desc: "Scan the QR on your pouch to book a consultation; a doctor will contact you within 8–12 hours of booking."
     }
   ];
 

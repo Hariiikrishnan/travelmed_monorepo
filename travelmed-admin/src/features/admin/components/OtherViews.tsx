@@ -79,7 +79,7 @@ export default function OtherViews({
               {orders.slice(0, 8).map((o, idx) => (
                 <tr key={idx} className="hover:bg-slate-50/50 transition">
                   <td className="py-3 px-4 font-extrabold text-slate-800">{o.customer}</td>
-                  <td className="py-3 px-4 font-mono font-bold text-slate-500">{o.email || `${o.customer.toLowerCase().replace(/[^a-z]/g, '')}@gmail.com`}</td>
+                  <td className="py-3 px-4 font-mono font-bold text-slate-500">{o.email || '—'}</td>
                   <td className="py-3 px-4 font-mono text-slate-400">{o.phone}</td>
                   <td className="py-3 px-4">{o.country}</td>
                   <td className="py-3 px-4 text-center text-teal-600 font-bold">{Math.floor(1 + idx % 3)}</td>
@@ -505,7 +505,7 @@ export default function OtherViews({
                 <label className="text-slate-500 font-bold uppercase tracking-wider">Hero Sub-text Paragraph</label>
                 <textarea 
                   rows={3}
-                  defaultValue="Carry the international travel medical kit packed with 150+ FDA approved medicines, combined with 24/7 instant doctor consultations globally."
+                  defaultValue="Carry the international travel medical kit packed with 150+ CDSCO approved medicines, combined with doctor consultations (contact within 8–12 hrs of booking)."
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none"
                 />
               </div>
@@ -591,46 +591,6 @@ export default function OtherViews({
                 <p className="font-bold text-slate-800 truncate text-[11px]">{f.name}</p>
                 <p className="text-[9px] text-slate-450 font-bold uppercase">{f.type} · {f.size}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // 8. NOTIFICATIONS FEED
-  if (view === 'notifications') {
-    const logs = [
-      { text: 'New Cash on Delivery order #1089 received from Delhi.', date: '3 mins ago', type: 'order' },
-      { text: 'Low Stock Alert: Antacid drops balance in warehouse falls to 6 units.', date: '1 hr ago', type: 'stock' },
-      { text: 'Doctor Consultation scheduled at 08:30 PM with Dr. Marc Dupoint.', date: '2 hrs ago', type: 'booking' },
-      { text: 'New 5-star product review published by Aniket Patel.', date: '4 hrs ago', type: 'review' }
-    ];
-    return (
-      <div className="space-y-4 text-left text-xs font-semibold text-slate-655">
-        <div>
-          <h3 className="text-sm font-bold text-[#172B4D] uppercase tracking-wider flex items-center gap-2"><Clock className="h-4.5 w-4.5 text-teal-655" /> Real-time Alert Logs</h3>
-          <p className="text-[10px] text-slate-400 mt-0.5">System feeds of active logs, client notifications, and priority actions.</p>
-        </div>
-        <div className="space-y-3">
-          {logs.map((log, i) => (
-            <div key={i} className="flex justify-between items-center bg-white border border-slate-200 rounded-2xl p-4 hover:border-slate-350 hover:shadow-sm transition">
-              <div className="flex items-center gap-3.5">
-                <div className={`p-2 rounded-xl shrink-0 ${
-                  log.type === 'order' 
-                    ? 'bg-teal-50 text-teal-600 border border-teal-150' 
-                    : log.type === 'stock'
-                    ? 'bg-rose-50 text-rose-600 border border-rose-150'
-                    : 'bg-blue-50 text-[#0B4F8C] border border-blue-150'
-                }`}>
-                  <ShieldAlert className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-slate-800 font-bold">{log.text}</p>
-                  <p className="text-[9px] text-slate-450 font-bold uppercase mt-0.5">{log.type} event</p>
-                </div>
-              </div>
-              <span className="text-[9px] text-slate-400 font-mono font-bold shrink-0">{log.date}</span>
             </div>
           ))}
         </div>

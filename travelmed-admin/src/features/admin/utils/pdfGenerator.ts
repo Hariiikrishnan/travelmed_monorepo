@@ -1,6 +1,19 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+/**
+ * Seller details printed on invoices and labels. Set these in the admin's .env —
+ * a GST "Tax Invoice" title is only used once a GSTIN is configured.
+ */
+const SELLER = {
+  name: process.env.NEXT_PUBLIC_SELLER_NAME || 'Travel Med',
+  address1: process.env.NEXT_PUBLIC_SELLER_ADDRESS_LINE1 || '',
+  address2: process.env.NEXT_PUBLIC_SELLER_ADDRESS_LINE2 || '',
+  email: process.env.NEXT_PUBLIC_SELLER_EMAIL || 'sales@travelmed.org',
+  phone: process.env.NEXT_PUBLIC_SELLER_PHONE || '+91 81484 93389',
+  gstin: process.env.NEXT_PUBLIC_SELLER_GSTIN || '',
+};
+
 export const generateInvoice = (order: any) => {
   const doc = new jsPDF();
   
@@ -11,16 +24,20 @@ export const generateInvoice = (order: any) => {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text('TAX INVOICE', 105, 25, { align: 'center' });
+  doc.text(SELLER.gstin ? 'TAX INVOICE' : 'ORDER INVOICE', 105, 25, { align: 'center' });
   
   // Company Info
   doc.setTextColor(50, 50, 50);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('TRAVEL MED INC.', 15, 55);
-  doc.text('10x Medical Hub, Sector 9', 15, 60);
-  doc.text('Global FULFILLMENT', 15, 65);
-  doc.text('contact@travelmed.org', 15, 70);
+  const sellerLines = [
+    SELLER.name.toUpperCase(),
+    SELLER.address1,
+    SELLER.address2,
+    `${SELLER.email} · ${SELLER.phone}`,
+    SELLER.gstin ? `GSTIN: ${SELLER.gstin}` : '',
+  ].filter(Boolean);
+  sellerLines.forEach((line, i) => doc.text(line, 15, 55 + i * 5));
   
   // Customer Info
   doc.setFont('helvetica', 'bold');
@@ -46,7 +63,7 @@ export const generateInvoice = (order: any) => {
 
   doc.setFont('helvetica', 'normal');
   doc.text(String(order.id), 40, 105);
-  doc.text(new Date().toLocaleDateString(), 40, 112);
+  doc.text(new Date(order.createdAt || Date.now()).toLocaleDateString('en-IN'), 40, 112);
   doc.text(order.tracking || 'Pending', 105, 105);
   doc.text(order.payment || 'N/A', 110, 112);
 
@@ -117,7 +134,7 @@ export const generateLabel = (order: any) => {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('PRIORITY SHIPPING', 50.8, 14, { align: 'center' });
+  doc.text('SHIPPING LABEL', 50.8, 14, { align: 'center' });
 
   // From Section
   doc.setTextColor(0, 0, 0);
@@ -125,9 +142,8 @@ export const generateLabel = (order: any) => {
   doc.setFont('helvetica', 'bold');
   doc.text('FROM:', 8, 25);
   doc.setFont('helvetica', 'normal');
-  doc.text('Travel Med Inc.', 8, 30);
-  doc.text('10x Medical Hub, DB Sector', 8, 34);
-  doc.text('Fulfilment Center, Earth 10001', 8, 38);
+  [SELLER.name, SELLER.address1, SELLER.address2 || SELLER.phone].filter(Boolean).slice(0, 3)
+    .forEach((line, i) => doc.text(line, 8, 30 + i * 4));
 
   doc.setLineWidth(0.5);
   doc.line(4, 43, 97.6, 43); // Separator
@@ -138,7 +154,7 @@ export const generateLabel = (order: any) => {
   doc.text('SHIP TO:', 8, 52);
   
   doc.setFontSize(14);
-  doc.text(order.customer.toUpperCase(), 8, 60);
+  doc.text(String(order.customer || '').toUpperCase(), 8, 60);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -153,7 +169,7 @@ export const generateLabel = (order: any) => {
   // Destination Country Big
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(`DEST: ${order.country.toUpperCase()}`, 8, currentY + 12);
+  doc.text(`DEST: ${String(order.country || '').toUpperCase()}`, 8, currentY + 12);
 
   doc.line(4, currentY + 18, 97.6, currentY + 18); // Separator
 
@@ -166,7 +182,7 @@ export const generateLabel = (order: any) => {
   // Fake Barcode (using courier font)
   doc.setFont('courier', 'bold');
   doc.setFontSize(36);
-  doc.text('|||| ||| ||||| |||', 50.8, 130, { align: 'center' });
+  
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text(order.tracking || 'TRK-PENDING', 50.8, 136, { align: 'center' });

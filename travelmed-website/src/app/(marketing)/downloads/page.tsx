@@ -1,11 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card } from '@/shared/ui/Card';
-import { Badge } from '@/shared/ui/Badge';
-import { Button } from '@/shared/ui/Button';
-import { FileText, Download, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { FileText, Download, ShieldCheck, FolderDown, Loader2 } from 'lucide-react';
+import { PageHero } from '@/shared/ui/PageHero';
+import { ScrollReveal } from '@/shared/ui/ScrollReveal';
 
 export default function DownloadsPage() {
   const [downloadIdx, setDownloadIdx] = useState<number | null>(null);
@@ -19,8 +17,8 @@ export default function DownloadsPage() {
       format: 'PDF Manual'
     },
     {
-      title: 'TSA Travel Compliance Checklist',
-      desc: 'Formal DCGI approved over the counter medicine inventory checklist matching customs carry-on regulations. Show this sheet at airport customs if queried.',
+      title: 'Airport & Customs Medicine Checklist',
+      desc: 'Formal DCGI approved medicine inventory checklist matching customs regulations. Show this sheet at airport customs if queried.',
       size: '1.1 MB',
       format: 'PDF Form'
     },
@@ -53,76 +51,75 @@ export default function DownloadsPage() {
   };
 
   return (
-    <div className="flex-1 bg-neutral-50 dark:bg-neutral-950 py-16 md:py-24 font-sans">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-12">
-        
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-4">
-          <Badge variant="primary">Document Center</Badge>
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight font-heading">
-            Official PDF Resource Downloads
-          </h1>
-          <p className="text-sm md:text-base text-neutral-500">
-            Access customs verification sheets, color-coded pouch manuals, and travel checklists for remote destinations.
-          </p>
-        </div>
+    <div className="flex flex-col min-h-screen font-sans bg-background">
+      <PageHero
+        badge="Document Center"
+        badgeIcon={<FolderDown className="h-3.5 w-3.5 text-secondary" />}
+        title="Official resource"
+        highlight="downloads"
+        description="Customs verification sheets, colour-coded pouch manuals, and travel checklists for every destination."
+        size="compact"
+      />
 
-        {/* List of documents */}
-        <div className="space-y-6">
+      <section className="py-14 md:py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-4">
           {docs.map((doc, idx) => {
             const isDownloading = downloadIdx === idx;
             return (
-              <Card key={idx} hoverEffect={true} className="p-6 bg-card border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-primary/20">
-                <div className="flex gap-4 items-start flex-1">
-                  <div className="p-3 bg-primary-light dark:bg-neutral-800 text-primary rounded-2xl shrink-0 mt-1">
+              <ScrollReveal key={doc.title} direction="up" delay={idx * 0.08}>
+                <div className="group flex flex-col sm:flex-row sm:items-center gap-5 rounded-[24px] border border-border bg-white p-6 transition-all duration-300 hover:border-primary/20 hover:shadow-[0_25px_60px_rgba(15,23,42,0.08)]">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark text-white shadow-lg shadow-primary/20">
                     <FileText className="h-6 w-6" />
                   </div>
-                  <div className="space-y-1.5 text-xs md:text-sm">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-neutral-800 dark:text-neutral-100">{doc.title}</h3>
-                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0.5">{doc.format}</Badge>
-                    </div>
-                    <p className="text-neutral-400 leading-relaxed max-w-xl">{doc.desc}</p>
-                    <span className="text-[10px] text-neutral-400 font-semibold block">File Size: {doc.size}</span>
-                  </div>
-                </div>
 
-                <div className="shrink-0 min-w-[160px]">
-                  <Button
-                    variant={isDownloading ? 'outline' : 'primary'}
-                    fullWidth
-                    size="sm"
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-base sm:text-lg font-bold font-heading">{doc.title}</h2>
+                    <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{doc.desc}</p>
+                    <div className="mt-3 flex items-center gap-2 text-xs font-medium text-slate-400">
+                      <span className="rounded-md bg-secondary/10 px-2 py-0.5 font-semibold text-secondary-dark">{doc.format}</span>
+                      <span>·</span>
+                      <span>{doc.size}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
                     onClick={() => handleDownload(idx, doc.title)}
-                    className="relative overflow-hidden cursor-pointer"
+                    disabled={downloadIdx !== null && !isDownloading}
+                    className={`relative inline-flex h-12 min-w-[160px] shrink-0 items-center justify-center gap-2 overflow-hidden rounded-[14px] px-5 text-sm font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isDownloading
+                        ? 'border border-primary/20 bg-primary/5 text-primary'
+                        : 'bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary-dark'
+                    }`}
                   >
                     {isDownloading ? (
                       <>
-                        <motion.div
-                          className="absolute left-0 top-0 bottom-0 bg-primary/10"
+                        <span
+                          aria-hidden
+                          className="absolute inset-y-0 left-0 bg-primary/10 transition-[width] duration-300"
                           style={{ width: `${progress}%` }}
                         />
-                        <span>Loading ({progress}%)</span>
+                        <Loader2 className="relative h-4 w-4 animate-spin" />
+                        <span className="relative tabular-nums">{progress}%</span>
                       </>
                     ) : (
                       <>
                         <Download className="h-4 w-4" />
-                        <span>Download</span>
+                        Download
                       </>
                     )}
-                  </Button>
+                  </button>
                 </div>
-              </Card>
+              </ScrollReveal>
             );
           })}
-        </div>
 
-        {/* Compliance Footer check */}
-        <div className="flex justify-center gap-1.5 text-[10px] text-neutral-400 font-semibold uppercase tracking-wider text-center max-w-md mx-auto pt-6">
-          <ShieldCheck className="h-4 w-4 text-accent" />
-          <span>Documents compliant with DCGI approved over the counter medicine regulations</span>
+          <p className="flex items-center justify-center gap-2 pt-6 text-center text-sm text-slate-500">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-secondary-dark" />
+            Documents compliant with DCGI approved medicine regulations
+          </p>
         </div>
-
-      </div>
+      </section>
     </div>
   );
 }

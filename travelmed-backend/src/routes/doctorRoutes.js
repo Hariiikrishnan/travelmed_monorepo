@@ -4,6 +4,7 @@ import { protect, restrictTo } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
+router.get('/admin/all', protect, restrictTo('admin'), doctorController.getAllAdmin);
 router.get('/', doctorController.getAll);
 router.get('/:id', doctorController.getById);
 

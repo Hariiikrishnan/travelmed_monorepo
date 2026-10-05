@@ -1,4 +1,6 @@
 import React from 'react';
+import { site, absoluteUrl } from '@/shared/config/site';
+import { kitPath, type ProductInfo } from '@/shared/pricing';
 
 interface JsonLdProps {
   data: Record<string, unknown> | Array<Record<string, unknown>>;
@@ -8,164 +10,128 @@ export function JsonLd({ data }: JsonLdProps) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      // Escape "<" so content can never break out of the script tag
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, '\\u003c') }}
     />
   );
 }
 
-// 1. Organization & MedicalBusiness Schema (AEO / GEO Entity Anchor)
+const ORG_ID = `${site.url}/#organization`;
+const WEBSITE_ID = `${site.url}/#website`;
+const FOUNDER_ID = `${site.url}/about#founder`;
+
+// ── Founder (E-E-A-T: medical reviewer for guides) ─────────────────────────
+export const founderSchema = {
+  '@type': 'Person',
+  '@id': FOUNDER_ID,
+  name: site.founder.name,
+  jobTitle: site.founder.jobTitle,
+  description: `${site.founder.jobTitle} of TravelMed. ${site.founder.credentials}.`,
+  image: site.founder.image,
+  url: site.founder.url,
+  hasCredential: site.founder.credentials,
+  worksFor: { '@id': ORG_ID },
+};
+
+// ── Organization + WebSite (rendered once, site-wide) ──────────────────────
 export const organizationSchema = {
   '@context': 'https://schema.org',
-  '@type': ['Organization', 'MedicalBusiness', 'OnlineStore'],
-  '@id': 'https://travelmed.org/#organization',
-  name: 'TravelMed',
-  legalName: 'TravelMed Global Healthcare Systems Inc.',
-  url: 'https://travelmed.org',
-  logo: {
-    '@type': 'ImageObject',
-    url: 'https://travelmed.org/logos/travelmed-logo.png',
-    width: 600,
-    height: 120,
-  },
-  image: 'https://travelmed.org/og-image.jpg',
-  description:
-    'TravelMed provides WHO, GMP, CDSCO, and DCGI approved travel medical kits equipped with 150+ OTC and prescription medications, paired with 24/7 instant global video doctor teleconsultations.',
-  medicalSpecialty: [
-    'Travel Medicine',
-    'Emergency Medicine',
-    'Internal Medicine',
-    'Tropical Medicine'
-  ],
-  areaServed: {
-    '@type': 'AdministrativeArea',
-    name: 'Worldwide'
-  },
-  knowsAbout: [
-    'Best travel medical kit',
-    'Travel medicine kit',
-    'International travel first aid kit',
-    'Prescription travel medical kit',
-    'Travel health pouch with doctor prescription',
-    'Family travel medical kit',
-    'TSA approved travel medicine kit',
-    'Bali belly medicine kit',
-    'Altitude sickness pills travel',
-    'Southeast Asia travel medicine list',
-    'Travel medicine for Europe trip',
-    'Medicines to take to Thailand',
-    'Traveler diarrhea kit',
-    'Online doctor consultation while traveling',
-    'Telehealth for international travelers',
-    'Get doctor prescription abroad online',
-    '24/7 video doctor travel emergency',
-    'Travel clinic online video call',
-    'WHO GMP approved travel medical kit',
-    'CDSCO DCGI approved travel prescription',
-    'Taking prescription medicines through airport customs',
-    'Customs friendly travel medicine pouch'
-  ],
-  contactPoint: [
+  '@graph': [
     {
-      '@type': 'ContactPoint',
-      telephone: '+1-800-555-0199',
-      contactType: 'customer service',
-      areaServed: 'Worldwide',
-      availableLanguage: ['English', 'Spanish', 'Hindi', 'French', 'German'],
-      hoursAvailable: {
-        '@type': 'OpeningHoursSpecification',
-        dayOfWeek: [
-          'Monday',
-          'Tuesday',
-          'Wednesday',
-          'Thursday',
-          'Friday',
-          'Saturday',
-          'Sunday'
-        ],
-        opens: '00:00',
-        closes: '23:59'
-      }
-    }
+      '@type': 'Organization',
+      '@id': ORG_ID,
+      name: site.name,
+      url: site.url,
+      logo: { '@type': 'ImageObject', url: site.logo },
+      image: site.product.image,
+      description: site.description,
+      founder: founderSchema,
+      areaServed: { '@type': 'Country', name: 'India' },
+      contactPoint: {
+        '@type': 'ContactPoint',
+        telephone: site.contact.phoneE164,
+        email: site.contact.email,
+        contactType: 'customer service',
+        areaServed: 'IN',
+        availableLanguage: ['English'],
+        hoursAvailable: {
+          '@type': 'OpeningHoursSpecification',
+          dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+          opens: '09:00',
+          closes: '18:00',
+        },
+      },
+      ...(site.sameAs.length ? { sameAs: site.sameAs } : {}),
+    },
+    {
+      '@type': 'WebSite',
+      '@id': WEBSITE_ID,
+      url: site.url,
+      name: site.name,
+      description: site.description,
+      inLanguage: 'en-IN',
+      publisher: { '@id': ORG_ID },
+    },
   ],
-  sameAs: [
-    'https://twitter.com/travelmed_official',
-    'https://instagram.com/travelmed_official',
-    'https://linkedin.com/company/travelmed-healthcare'
-  ]
 };
 
-// 2. Main Product Schema for Travel Medical Kits
-export const productSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'Product',
-  '@id': 'https://travelmed.org/#product-kit',
-  name: 'TravelMed Complete Travel Medical Kit',
-  image: [
-    'https://travelmed.org/kit-hero.jpg',
-    'https://travelmed.org/kit-compartments.jpg'
-  ],
-  description:
-    'WHO, GMP, CDSCO & DCGI Approved travel medical pouch featuring 150+ prescription & OTC remedies across 4 color-coded triage zones. Includes signed international doctor prescription and unlimited 24/7 video teleconsultation access.',
-  sku: 'TM-KIT-2026',
-  mpn: 'TM-GLOBAL-MED-01',
-  brand: {
-    '@type': 'Brand',
-    name: 'TravelMed'
-  },
-  certifications: [
-    'WHO-GMP Certified Manufacturing',
-    'CDSCO Approved Medical Device & Rx Packaging',
-    'DCGI Cleared Travel Prescription Standard'
-  ],
-  aggregateRating: {
-    '@type': 'AggregateRating',
-    ratingValue: '4.9',
-    reviewCount: '1420',
-    bestRating: '5',
-    worstRating: '1'
-  },
-  offers: {
-    '@type': 'AggregateOffer',
-    priceCurrency: 'USD',
-    lowPrice: '79',
-    highPrice: '199',
-    offerCount: '3',
-    offers: [
-      {
-        '@type': 'Offer',
-        name: 'Solo Travel Kit',
-        price: '79.00',
-        priceCurrency: 'USD',
-        availability: 'https://schema.org/InStock',
-        url: 'https://travelmed.org/buy?plan=solo',
-        priceValidUntil: '2027-12-31',
-        itemCondition: 'https://schema.org/NewCondition'
-      },
-      {
-        '@type': 'Offer',
-        name: 'Couple Travel Kit',
-        price: '129.00',
-        priceCurrency: 'USD',
-        availability: 'https://schema.org/InStock',
-        url: 'https://travelmed.org/buy?plan=couple',
-        priceValidUntil: '2027-12-31',
-        itemCondition: 'https://schema.org/NewCondition'
-      },
-      {
-        '@type': 'Offer',
-        name: 'Family Travel Kit',
-        price: '199.00',
-        priceCurrency: 'USD',
-        availability: 'https://schema.org/InStock',
-        url: 'https://travelmed.org/buy?plan=family',
-        priceValidUntil: '2027-12-31',
-        itemCondition: 'https://schema.org/NewCondition'
-      }
-    ]
-  }
-};
+// ── Product (only on /buy). No rating markup until genuine reviews exist. ──
+/** Built from the admin-managed product so search engines always see the live price. */
+/** Public page for a kit. */
+export const kitUrl = (product: Pick<ProductInfo, 'slug' | 'isFeatured'>) => absoluteUrl(kitPath(product));
 
-// 3. FAQ Schema Generator (for AEO / ChatGPT / Perplexity / Google AI Overviews)
+const kitImages = (product: ProductInfo | null) =>
+  product?.images.length ? product.images.map((src) => (src.startsWith('http') ? src : absoluteUrl(src))) : site.product.images;
+
+export function buildProductSchema(product: ProductInfo | null) {
+  const url = product ? kitUrl(product) : site.product.url;
+  const base = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    '@id': `${url}#product`,
+    name: product?.name ?? site.product.name,
+    image: kitImages(product),
+    description: product?.seoDescription || product?.description || `${site.description} Free express shipping across India.`,
+    sku: product?.sku ?? site.product.sku,
+    brand: { '@type': 'Brand', name: site.name },
+    category: 'Health & Personal Care > First Aid & Medical Kits',
+  };
+  if (!product) return base;
+
+  const inStock = product.status === 'In Stock' && product.stock > 0;
+  return {
+    ...base,
+    offers: {
+      '@type': 'Offer',
+      url,
+      price: product.price.toFixed(2),
+      priceCurrency: product.commerce?.currency ?? 'INR',
+      availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+      seller: { '@id': ORG_ID },
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: { '@type': 'MonetaryAmount', value: '0', currency: product.commerce?.currency ?? 'INR' },
+        shippingDestination: { '@type': 'DefinedRegion', addressCountry: site.country },
+        deliveryTime: {
+          '@type': 'ShippingDeliveryTime',
+          handlingTime: { '@type': 'QuantitativeValue', minValue: 0, maxValue: site.shipping.processingDays, unitCode: 'DAY' },
+          transitTime: { '@type': 'QuantitativeValue', minValue: site.shipping.minDays, maxValue: site.shipping.maxDays, unitCode: 'DAY' },
+        },
+      },
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        applicableCountry: site.country,
+        returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+        merchantReturnDays: site.returns.windowDays,
+        returnMethod: 'https://schema.org/ReturnByMail',
+        returnFees: 'https://schema.org/FreeReturn',
+      },
+    },
+  };
+}
+
+// ── FAQPage ────────────────────────────────────────────────────────────────
 export function buildFaqSchema(faqs: Array<{ title: string; contentText: string }>) {
   return {
     '@context': 'https://schema.org',
@@ -175,13 +141,13 @@ export function buildFaqSchema(faqs: Array<{ title: string; contentText: string 
       name: faq.title,
       acceptedAnswer: {
         '@type': 'Answer',
-        text: faq.contentText
-      }
-    }))
+        text: faq.contentText,
+      },
+    })),
   };
 }
 
-// 4. Breadcrumb Schema Generator
+// ── BreadcrumbList ─────────────────────────────────────────────────────────
 export function buildBreadcrumbSchema(items: Array<{ name: string; url: string }>) {
   return {
     '@context': 'https://schema.org',
@@ -190,23 +156,51 @@ export function buildBreadcrumbSchema(items: Array<{ name: string; url: string }
       '@type': 'ListItem',
       position: index + 1,
       name: item.name,
-      item: item.url
-    }))
+      item: item.url.startsWith('http') ? item.url : absoluteUrl(item.url),
+    })),
   };
 }
 
-// 5. Medical WebPage & Teleconsultation Schema
+// ── Guides & destination pages (medically reviewed articles) ──────────────
+export function buildMedicalArticleSchema(opts: {
+  title: string;
+  description: string;
+  path: string;
+  datePublished: string;
+  dateModified: string;
+  image?: string;
+}) {
+  const url = absoluteUrl(opts.path);
+  return {
+    '@context': 'https://schema.org',
+    '@type': ['MedicalWebPage', 'Article'],
+    '@id': `${url}#article`,
+    headline: opts.title,
+    name: opts.title,
+    description: opts.description,
+    url,
+    mainEntityOfPage: url,
+    image: opts.image ?? site.product.image,
+    inLanguage: 'en-IN',
+    datePublished: opts.datePublished,
+    dateModified: opts.dateModified,
+    lastReviewed: opts.dateModified,
+    author: { '@id': ORG_ID, '@type': 'Organization', name: site.name },
+    reviewedBy: founderSchema,
+    publisher: { '@id': ORG_ID },
+    audience: { '@type': 'PeopleAudience', geographicArea: { '@type': 'Country', name: 'India' } },
+  };
+}
+
+// ── Teleconsultation page ──────────────────────────────────────────────────
 export const teleconsultationMedicalSchema = {
   '@context': 'https://schema.org',
   '@type': 'MedicalWebPage',
-  '@id': 'https://travelmed.org/teleconsultation#webpage',
-  name: 'Global 24/7 Travel Teleconsultation & Triage',
-  url: 'https://travelmed.org/teleconsultation',
-  description:
-    'Connect in under 3 minutes with board-certified travel medicine physicians. Triage GI distress, fever, altitude sickness, wound care, and obtain valid international prescriptions.',
-  aspect: ['Triage', 'Diagnosis', 'Treatment', 'Prescription'],
-  medicalAudience: {
-    '@type': 'MedicalAudience',
-    audienceType: 'International Travelers and Tourists'
-  }
+  '@id': `${site.url}/teleconsultation#webpage`,
+  name: 'Doctor teleconsultation for travellers',
+  url: `${site.url}/teleconsultation`,
+  description: `Every TravelMed kit includes ${site.consults.count} free teleconsultations with a ${site.consults.specialists}. After booking, a licensed doctor contacts you within ${site.consults.callbackHours} hours.`,
+  medicalAudience: { '@type': 'MedicalAudience', audienceType: 'Travellers' },
+  publisher: { '@id': ORG_ID },
+  reviewedBy: founderSchema,
 };

@@ -1,7 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { CartItem, Order } from '@/types';
+import { analytics, kitItem } from '@/shared/analytics/gtag';
+import { useCatalog } from '@/shared/providers/ProductProvider';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -13,18 +15,28 @@ interface CartContextType {
   setIsCartOpen: (isOpen: boolean) => void;
   getCartTotal: () => number;
   getCartCount: () => number;
-  placeOrder: (
-    shippingAddress: Order['shippingAddress'],
-    paymentDetails?: { paymentId: string; paymentStatus: string },
-    couponCode?: string
-  ) => Promise<Order>;
+  /** Stores the server-confirmed order (after payment verification) and empties the bag. */
+  completeOrder: (order: Order) => void;
   currentOrder: Order | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [storedItems, setCartItems] = useState<CartItem[]>([]);
+  const catalog = useCatalog();
+
+  // Name, price and image always come from the live, admin-managed kit — never from what was
+  // saved earlier. Kits that were removed or hidden drop out of the bag.
+  const cartItems = useMemo(
+    () =>
+      storedItems.flatMap((item) => {
+        const kit = catalog.find((p) => p.id === item.id);
+        if (!kit) return catalog.length ? [] : [item]; // keep as-is if the catalogue failed to load
+        return [{ ...item, name: kit.name, price: kit.price, image: kit.images[0] ?? item.image, description: kit.tagline || item.description }];
+      }),
+    [storedItems, catalog]
+  );
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
 
@@ -47,23 +59,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addItem = (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
-    const existingIndex = cartItems.findIndex(
+    const existingIndex = storedItems.findIndex(
       (i) => i.id === item.id && JSON.stringify(i.options) === JSON.stringify(item.options)
     );
     
     if (existingIndex > -1) {
-      const updated = [...cartItems];
-      updated[existingIndex].quantity += item.quantity || 1;
+      const updated = storedItems.map((i, idx) =>
+        idx === existingIndex ? { ...i, quantity: Math.min(20, i.quantity + (item.quantity || 1)) } : i
+      );
       saveCart(updated);
     } else {
-      saveCart([...cartItems, { ...item, quantity: item.quantity || 1 } as CartItem]);
+      saveCart([...storedItems, { ...item, quantity: item.quantity || 1 } as CartItem]);
     }
+    analytics.addToCart([{ ...kitItem(item.quantity || 1, item.price), item_id: item.id, item_name: item.name }]);
     // Automatically open the cart drawer when a item is added
     setIsCartOpen(true);
   };
 
   const removeItem = (id: string) => {
-    const updated = cartItems.filter((item) => item.id !== id);
+    const updated = storedItems.filter((item) => item.id !== id);
     saveCart(updated);
   };
 
@@ -72,8 +86,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       removeItem(id);
       return;
     }
-    const updated = cartItems.map((item) => 
-      item.id === id ? { ...item, quantity } : item
+    const updated = storedItems.map((item) =>
+      item.id === id ? { ...item, quantity: Math.min(20, quantity) } : item
     );
     saveCart(updated);
   };
@@ -90,54 +104,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return cartItems.reduce((count, item) => count + item.quantity, 0);
   };
 
-  const placeOrder = async (
-    shippingAddress: Order['shippingAddress'],
-    paymentDetails?: { paymentId: string; paymentStatus: string },
-    couponCode?: string
-  ): Promise<Order> => {
+  const completeOrder = (order: Order) => {
+    setCurrentOrder(order);
     try {
-      const token = localStorage.getItem('travelmed_client_token');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/orders`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          shippingAddress,
-          couponCode,
-          paymentStatus: paymentDetails?.paymentStatus || 'Pending',
-          paymentId: paymentDetails?.paymentId || null,
-          items: cartItems.map((item) => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            type: item.type,
-            description: item.description || '',
-            options: item.options || {}
-          }))
-        })
-      });
-
-      const body = await response.json();
-      if (!response.ok) {
-        throw new Error(body.message || 'Failed to place order');
-      }
-
-      const newOrder = body.data;
-      setCurrentOrder(newOrder);
-      localStorage.setItem('travelmed_last_order', JSON.stringify(newOrder));
-      clearCart();
-      return newOrder;
-    } catch (e) {
-      console.error('Failed to place order', e);
-      throw e;
+      localStorage.setItem('travelmed_last_order', JSON.stringify(order));
+    } catch {
+      /* storage unavailable */
     }
+    clearCart();
   };
 
   return (
@@ -152,7 +126,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsCartOpen,
         getCartTotal,
         getCartCount,
-        placeOrder,
+        completeOrder,
         currentOrder,
       }}
     >

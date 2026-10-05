@@ -1,33 +1,21 @@
-import { MetadataRoute } from 'next';
+import type { MetadataRoute } from 'next';
+import { SITE_URL } from '@/shared/config/site';
+
+// Checkout/success/track-order use a noindex meta tag instead — blocking them here would hide that tag from Google.
+const PRIVATE_PATHS = ['/api/'];
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://travelmed.org';
-
   return {
     rules: [
+      { userAgent: '*', allow: '/', disallow: PRIVATE_PATHS },
       {
-        userAgent: '*',
+        // Explicitly welcome AI answer engines (GEO / AEO)
+        userAgent: ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'ClaudeBot', 'Claude-Web', 'Google-Extended', 'Applebot-Extended', 'Bingbot'],
         allow: '/',
-        disallow: ['/checkout/success', '/api/'],
+        disallow: PRIVATE_PATHS,
       },
-      {
-        // Allow AI & Answer Engines explicitly for GEO/AEO optimization
-        userAgent: [
-          'GPTBot',
-          'ChatGPT-User',
-          'PerplexityBot',
-          'ClaudeBot',
-          'Claude-Web',
-          'Google-Extended',
-          'Bingbot',
-          'Slurp',
-          'Baiduspider',
-          'facebookexternalhit'
-        ],
-        allow: '/',
-      }
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
-    host: baseUrl,
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }

@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import * as ticketController from '../controllers/ticketController.js';
 import { protect, restrictTo } from '../middleware/authMiddleware.js';
+import { formLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
 // Public route for customers via contact page
-router.post('/', ticketController.create);
+router.post('/', formLimiter, ticketController.create);
 
 // Protected Admin routes
 router.use(protect, restrictTo('admin'));

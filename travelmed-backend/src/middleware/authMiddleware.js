@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { UnauthorizedError, ForbiddenError } from '../utils/errors.js';
 import prisma from '../config/database.js';
+import { getJwtSecret } from '../config/env.js';
 
 export const protect = async (req, res, next) => {
   try {
@@ -13,7 +14,7 @@ export const protect = async (req, res, next) => {
       throw new UnauthorizedError('Not authorized, no token provided.');
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-jwt-secret-key-12345');
+    const decoded = jwt.verify(token, getJwtSecret());
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
@@ -42,7 +43,7 @@ export const optionalProtect = async (req, res, next) => {
       return next();
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-jwt-secret-key-12345');
+    const decoded = jwt.verify(token, getJwtSecret());
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },

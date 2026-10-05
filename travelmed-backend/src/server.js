@@ -1,5 +1,9 @@
 import 'dotenv/config';
 import app from './app.js';
+import { getJwtSecret } from './config/env.js';
+
+// Refuse to start without a strong JWT secret
+getJwtSecret();
 
 
 const PORT = process.env.PORT || 5000;

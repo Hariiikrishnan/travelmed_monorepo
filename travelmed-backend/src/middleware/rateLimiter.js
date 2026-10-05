@@ -21,3 +21,15 @@ export const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/** Public write endpoints (checkout start, consultation requests, contact form). */
+export const formLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again in a few minutes.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

@@ -1,10 +1,11 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/database.js';
+import { getJwtSecret } from '../config/env.js';
 import { ConflictError, UnauthorizedError } from '../utils/errors.js';
 
 const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'dev-jwt-secret-key-12345', {
+  return jwt.sign({ id }, getJwtSecret(), {
     expiresIn: '7d'
   });
 };

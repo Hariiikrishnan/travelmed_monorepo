@@ -1,717 +1,598 @@
-import React, { useState } from 'react';
-import { 
-  Package, Plus, Save, Trash2, Edit2, Globe, Image as ImageIcon, 
-  HelpCircle, Sparkles, X, ListPlus 
+import React, { useMemo, useState } from 'react';
+import {
+  Package, Plus, Edit2, Trash2, Copy, X, Sparkles, Star, EyeOff, Pill, Stethoscope, Briefcase,
+  Globe, Image as ImageIcon, ListPlus, IndianRupee, Search, Loader2,
 } from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+/** Website origin — kit photos and category icons are stored as website paths like /icons/x.webp */
+const SITE_URL = process.env.NEXT_PUBLIC_WEBSITE_URL || 'http://localhost:3000';
+const assetUrl = (src: string) => (src.startsWith('/') ? `${SITE_URL}${src}` : src);
+
+/** API products are used as-is; kept as a function so callers have one mapping point. */
+export const toProductView = (p: any) => p;
+
+const authHeaders = (): Record<string, string> => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('travelmed_admin_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+};
+
+type KitItemForm = { medicineId: string; quantity: number; unit: string; note: string };
+
+interface KitForm {
+  name: string;
+  slug: string;
+  sku: string;
+  kitTypeId: string;
+  tagline: string;
+  tripLength: string;
+  isFeatured: boolean;
+  sortOrder: number;
+  mrp: number;
+  price: number;
+  gstPercent: number;
+  stock: number;
+  status: 'In Stock' | 'Out of Stock';
+  visibility: 'Visible' | 'Hidden';
+  description: string;
+  consultsIncluded: number;
+  bagSize: string;
+  bagWeight: string;
+  specs: Record<string, string>;
+  highlights: string[];
+  benefits: string[];
+  items: KitItemForm[];
+  faqs: { q: string; a: string }[];
+  images: string[];
+  seoTitle: string;
+  seoDescription: string;
+}
+
+const EMPTY: KitForm = {
+  name: '', slug: '', sku: '', kitTypeId: '', tagline: '', tripLength: '', isFeatured: false, sortOrder: 0,
+  mrp: 0, price: 0, gstPercent: 5, stock: 0, status: 'In Stock', visibility: 'Hidden', description: '',
+  consultsIncluded: 0, bagSize: '', bagWeight: '', specs: {}, highlights: [], benefits: [], items: [],
+  faqs: [], images: [], seoTitle: '', seoDescription: '',
+};
+
+const fromProduct = (p: any): KitForm => ({
+  name: p.name ?? '',
+  slug: p.slug ?? '',
+  sku: p.sku ?? '',
+  kitTypeId: p.kitTypeId ?? '',
+  tagline: p.tagline ?? '',
+  tripLength: p.tripLength ?? '',
+  isFeatured: Boolean(p.isFeatured),
+  sortOrder: p.sortOrder ?? 0,
+  mrp: p.mrp ?? 0,
+  price: p.price ?? 0,
+  gstPercent: p.gstPercent ?? 5,
+  stock: p.stock ?? 0,
+  status: p.status ?? 'In Stock',
+  visibility: p.visibility ?? 'Visible',
+  description: p.description ?? '',
+  consultsIncluded: p.consultsIncluded ?? 0,
+  bagSize: p.bagSize ?? '',
+  bagWeight: p.bagWeight ?? '',
+  specs: Object.fromEntries(Object.entries(p.specs ?? {}).filter(([k]) => k !== 'Dimensions' && k !== 'Weight')) as Record<string, string>,
+  highlights: p.highlights ?? [],
+  benefits: p.benefits ?? [],
+  items: (p.items ?? []).map((i: any) => ({ medicineId: i.medicineId, quantity: i.quantity, unit: i.unit, note: i.note ?? '' })),
+  faqs: p.faqs ?? [],
+  images: p.images ?? [],
+  seoTitle: p.seoTitle ?? '',
+  seoDescription: p.seoDescription ?? '',
+});
+
+const slugify = (text: string) => text.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+const inr = (n: number) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
+const UNITS = ['tablets', 'capsules', 'strips', 'sachets', 'pcs', 'pack', 'ml', 'tube', 'bottle'];
+
+const inputCls = 'w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C] focus:ring-1 focus:ring-[#0B4F8C]';
+const labelCls = 'text-slate-500 font-bold uppercase tracking-wider';
+
+function Field({ label, hint, children, wide }: { label: string; hint?: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <div className={`space-y-1.5 ${wide ? 'md:col-span-2' : ''}`}>
+      <label className={labelCls}>{label}</label>
+      {children}
+      {hint && <p className="text-[10px] font-medium text-slate-400">{hint}</p>}
+    </div>
+  );
+}
+
+/** Editable list of short strings (highlights, benefits, image URLs). */
+function ListEditor({ values, onChange, placeholder }: { values: string[]; onChange: (v: string[]) => void; placeholder: string }) {
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    if (!draft.trim()) return;
+    onChange([...values, draft.trim()]);
+    setDraft('');
+  };
+  return (
+    <div className="space-y-2">
+      {values.map((v, i) => (
+        <div key={`${v}-${i}`} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <span className="flex-1 truncate text-slate-700">{v}</span>
+          <button type="button" onClick={() => onChange(values.filter((_, j) => j !== i))} aria-label="Remove" className="text-slate-400 hover:text-rose-600 cursor-pointer">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+      <div className="flex gap-2">
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())} placeholder={placeholder} className={inputCls} />
+        <button type="button" onClick={add} className="shrink-0 rounded-xl bg-[#0B4F8C] px-4 font-bold text-white cursor-pointer">Add</button>
+      </div>
+    </div>
+  );
+}
 
 interface ProductsViewProps {
   products: any[];
   setProducts: React.Dispatch<React.SetStateAction<any[]>>;
   addActivityLog: (action: string, changes: string) => void;
+  medicines: any[];
+  medicineCategories: any[];
+  kitTypes: any[];
 }
 
-export default function ProductsView({
-  products,
-  setProducts,
-  addActivityLog,
-}: ProductsViewProps) {
-  const [isCreating, setIsCreating] = useState(false);
+type Tab = 'general' | 'pricing' | 'contents' | 'bag' | 'details' | 'media' | 'seo';
+
+export default function ProductsView({ products, setProducts, addActivityLog, medicines, medicineCategories, kitTypes }: ProductsViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formTab, setFormTab] = useState<'general' | 'features' | 'seo_faq' | 'media'>('general');
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>('general');
+  const [form, setForm] = useState<KitForm>(EMPTY);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [medSearch, setMedSearch] = useState('');
+  const [specKey, setSpecKey] = useState('');
+  const [specVal, setSpecVal] = useState('');
+  const [faqQ, setFaqQ] = useState('');
+  const [faqA, setFaqA] = useState('');
 
-  // Form State
-  const [name, setName] = useState('');
-  const [sku, setSku] = useState('');
-  const [price, setPrice] = useState(0);
-  const [offerPrice, setOfferPrice] = useState(0);
-  const [gst, setGst] = useState(18);
-  const [stock, setStock] = useState(100);
-  const [weight, setWeight] = useState('');
-  const [dimensions, setDimensions] = useState('');
-  const [description, setDescription] = useState('');
-  const [visibility, setVisibility] = useState<'Visible' | 'Hidden'>('Visible');
-  const [status, setStatus] = useState<'In Stock' | 'Out of Stock'>('In Stock');
-  
-  // Array State fields
-  const [highlights, setHighlights] = useState<string[]>(['TSA compliant travel case', '150+ essential medicines']);
-  const [newHighlight, setNewHighlight] = useState('');
-  const [benefits, setBenefits] = useState<string[]>(['Avoid international clinic charges', '24/7 direct doctor link']);
-  const [newBenefit, setNewBenefit] = useState('');
-  const [specs, setSpecs] = useState<Record<string, string>>({ Material: 'Nylon', Waterproof: 'Yes' });
-  const [newSpecKey, setNewSpecKey] = useState('');
-  const [newSpecVal, setNewSpecVal] = useState('');
-  const [faqs, setFaqs] = useState<{ q: string; a: string }[]>([
-    { q: 'Is it airline friendly?', a: 'Yes, liquid volumes conform to security check parameters.' }
-  ]);
-  const [newFaqQ, setNewFaqQ] = useState('');
-  const [newFaqA, setNewFaqA] = useState('');
+  const set = <K extends keyof KitForm>(key: K, value: KitForm[K]) => setForm((f) => ({ ...f, [key]: value }));
 
-  // SEO
-  const [seoTitle, setSeoTitle] = useState('');
-  const [seoDesc, setSeoDesc] = useState('');
-  const [seoKeys, setSeoKeys] = useState('');
-
-  // Images
-  const [images, setImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400&h=300'
-  ]);
-  const [newImageUrl, setNewImageUrl] = useState('');
-
-  const handleCreateNewClick = () => {
-    setName('');
-    setSku('TM-KIT-' + Math.floor(1000 + Math.random() * 9000));
-    setPrice(3499);
-    setOfferPrice(2650);
-    setGst(18);
-    setStock(120);
-    setWeight('850g');
-    setDimensions('22cm x 15cm x 8cm');
-    setDescription('Comprehensive premium medical kit containing 150+ prescription and OTC medicines coupled with a 24/7 teleconsultation service card.');
-    setHighlights(['TSA compliant travel case', '150+ essential medicines', 'Quick scan digital doctor card']);
-    setBenefits(['Avoid overseas walk-in clinic charges', '24/7 direct US/EU doctor consultations', 'Waterproof shockproof nylon shell']);
-    setSpecs({ Material: 'High-density Shockproof Nylon', Waterproof: 'IPX-5 Rated Zipper Seal', Certifications: 'FDA, WHO-GMP Approved Brands' });
-    setFaqs([{ q: 'Can I carry it in my cabin bag?', a: 'Yes, it is strictly cabin-luggage friendly.' }]);
-    setSeoTitle('Travel Med Kit - Premium Travel First Aid');
-    setSeoDesc('Buy Premium Travel Medical Kit with 24/7 doctor consultations included.');
-    setSeoKeys('travel medical kit, travel first aid, travel doctor');
-    setImages(['https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400&h=300']);
-    setIsCreating(true);
-    setEditingId(null);
-    setFormTab('general');
+  const openEditor = (initial: KitForm, id: string | null) => {
+    setForm(initial);
+    setEditingId(id);
+    setTab('general');
+    setError('');
+    setMedSearch('');
+    setOpen(true);
   };
 
-  const handleEdit = (prod: any) => {
-    setEditingId(prod.id);
-    setName(prod.name);
-    setSku(prod.sku);
-    setPrice(prod.price);
-    setOfferPrice(prod.offerPrice);
-    setGst(prod.gst);
-    setStock(prod.stock);
-    setWeight(prod.weight);
-    setDimensions(prod.dimensions);
-    setDescription(prod.description);
-    setHighlights(prod.highlights || []);
-    setBenefits(prod.benefits || []);
-    setSpecs(prod.specifications || {});
-    setFaqs(prod.faq || []);
-    setSeoTitle(prod.seoTitle || '');
-    setSeoDesc(prod.seoDesc || '');
-    setSeoKeys(prod.seoKeys || '');
-    setImages(prod.images || []);
-    setIsCreating(true);
-    setFormTab('general');
-  };
+  const duplicate = (p: any) =>
+    openEditor(
+      {
+        ...fromProduct(p),
+        name: `${p.name} (Copy)`,
+        slug: `${p.slug}-copy`,
+        sku: `${p.sku}-COPY`,
+        isFeatured: false,
+        visibility: 'Hidden',
+      },
+      null
+    );
 
-  const handleSave = (e: React.FormEvent) => {
+  // ── Contents helpers ──
+  const itemByMed = useMemo(() => new Map(form.items.map((i) => [i.medicineId, i])), [form.items]);
+  const toggleMedicine = (medicineId: string) =>
+    set('items', itemByMed.has(medicineId) ? form.items.filter((i) => i.medicineId !== medicineId) : [...form.items, { medicineId, quantity: 1, unit: 'tablets', note: '' }]);
+  const patchItem = (medicineId: string, patch: Partial<KitItemForm>) =>
+    set('items', form.items.map((i) => (i.medicineId === medicineId ? { ...i, ...patch } : i)));
+
+  const groupedMedicines = useMemo(() => {
+    const q = medSearch.trim().toLowerCase();
+    const list = medicines.filter((m) => !q || m.name.toLowerCase().includes(q) || (m.activeIngredient ?? '').toLowerCase().includes(q));
+    const order = new Map<string, number>(medicineCategories.map((c: any, i: number) => [c.id, i]));
+    const groups = new Map<string, { name: string; icon: string; meds: any[] }>();
+    for (const m of list) {
+      const cat = m.medicineCategory ?? { id: 'none', name: m.category || 'Uncategorised', icon: '' };
+      const g: { name: string; icon: string; meds: any[] } = groups.get(cat.id) ?? { name: cat.name, icon: cat.icon, meds: [] };
+      g.meds.push(m);
+      groups.set(cat.id, g);
+    }
+    return [...groups.entries()].sort((a, b) => (order.get(a[0]) ?? 999) - (order.get(b[0]) ?? 999));
+  }, [medicines, medicineCategories, medSearch]);
+
+  const totals = useMemo(() => {
+    const selected = medicines.filter((m) => itemByMed.has(m.id));
+    return {
+      medicines: selected.length,
+      units: form.items.reduce((s, i) => s + (Number(i.quantity) || 0), 0),
+      categories: new Set(selected.map((m) => m.categoryId).filter(Boolean)).size,
+    };
+  }, [medicines, itemByMed, form.items]);
+
+  // ── Save / delete ──
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-
-    if (editingId) {
-      setProducts(prev => prev.map(p => p.id === editingId ? {
-        ...p,
-        name, sku, price, offerPrice, gst, stock, weight, dimensions, description,
-        highlights, benefits, specifications: specs, faq: faqs, seoTitle, seoDesc, seoKeys,
-        images, visibility, status
-      } : p));
-      addActivityLog('Product Updated', `Updated product: ${name} (SKU: ${sku})`);
-    } else {
-      const newProduct = {
-        id: 'p-' + Math.floor(100 + Math.random() * 900),
-        name, sku, price, offerPrice, gst, stock, weight, dimensions, description,
-        highlights, benefits, specifications: specs, faq: faqs, seoTitle, seoDesc, seoKeys,
-        images, visibility, status
-      };
-      setProducts(prev => [...prev, newProduct]);
-      addActivityLog('Product Created', `Created product: ${name} (SKU: ${sku})`);
+    if (!form.name.trim()) return setError('Enter a kit name.');
+    if (!form.price || !form.mrp || form.price > form.mrp) {
+      setTab('pricing');
+      return setError('Enter a selling price and an MRP. The selling price cannot be higher than the MRP.');
     }
 
-    setIsCreating(false);
-    setEditingId(null);
-  };
+    const payload = {
+      ...form,
+      slug: slugify(form.slug || form.name),
+      sku: form.sku.trim() || slugify(form.name).toUpperCase(),
+      kitTypeId: form.kitTypeId || null,
+      mrp: Number(form.mrp),
+      price: Number(form.price),
+      gstPercent: Number(form.gstPercent) || 0,
+      stock: Number(form.stock) || 0,
+      sortOrder: Number(form.sortOrder) || 0,
+      consultsIncluded: Number(form.consultsIncluded) || 0,
+      specs: { ...form.specs, ...(form.bagSize ? { Dimensions: form.bagSize } : {}), ...(form.bagWeight ? { Weight: form.bagWeight } : {}) },
+      items: form.items.map((i) => ({ ...i, quantity: Math.max(1, Number(i.quantity) || 1) })),
+    };
 
-  const handleDelete = (id: string, prodName: string) => {
-    if (confirm(`Are you sure you want to delete ${prodName}?`)) {
-      setProducts(prev => prev.filter(p => p.id !== id));
-      addActivityLog('Product Deleted', `Deleted product: ${prodName}`);
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/products${editingId ? `/${editingId}` : ''}`, {
+        method: editingId ? 'PUT' : 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Failed to save kit.');
+      const saved = body.data;
+      setProducts((prev) => {
+        const rest = prev.filter((p) => p.id !== saved.id).map((p) => (saved.isFeatured ? { ...p, isFeatured: false } : p));
+        return [...rest, saved].sort((a, b) => a.sortOrder - b.sortOrder);
+      });
+      addActivityLog(editingId ? 'Kit Updated' : 'Kit Created', `${saved.name} · ${inr(saved.price)} · ${saved.counts?.medicines ?? 0} medicines`);
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save kit.');
+    } finally {
+      setSaving(false);
     }
   };
+
+  const handleDelete = async (p: any) => {
+    if (!confirm(`Delete ${p.name}? It disappears from the website immediately. Past orders keep their details.`)) return;
+    const res = await fetch(`${API_URL}/api/products/${p.id}`, { method: 'DELETE', headers: authHeaders() });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(body.message || 'Failed to delete kit.');
+    setProducts((prev) => prev.filter((x) => x.id !== p.id));
+    addActivityLog('Kit Deleted', p.name);
+  };
+
+  const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+    { id: 'general', label: 'General', icon: Package },
+    { id: 'pricing', label: 'Pricing & Stock', icon: IndianRupee },
+    { id: 'contents', label: `Contents (${form.items.length})`, icon: Pill },
+    { id: 'bag', label: 'Bag & Consults', icon: Briefcase },
+    { id: 'details', label: 'Highlights & FAQ', icon: ListPlus },
+    { id: 'media', label: 'Photos', icon: ImageIcon },
+    { id: 'seo', label: 'SEO', icon: Globe },
+  ];
 
   return (
     <div className="space-y-6 text-slate-650">
-      
-      {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
         <div className="text-left">
           <h2 className="text-xl font-bold text-[#172B4D] uppercase tracking-wider flex items-center gap-2">
-            <Package className="h-5 w-5 text-teal-650" /> Products Manager
+            <Package className="h-5 w-5 text-teal-650" /> Kits
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Configure and manage storefront products.</p>
+          <p className="text-xs text-slate-400 mt-1">Each kit has its own price, medicines, bag and free consultations. Changes go live on the website when you save.</p>
         </div>
-        {!isCreating && (
-          <button 
-            onClick={handleCreateNewClick}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#0B4F8C] text-white rounded-xl font-bold text-xs hover:bg-[#083B69] shadow-sm transition cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Create Product
+        {!open && (
+          <button onClick={() => openEditor(EMPTY, null)} className="flex items-center gap-1.5 bg-[#0B4F8C] hover:bg-[#0B4F8C]/90 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer">
+            <Plus className="h-4 w-4" /> New kit
           </button>
         )}
       </div>
 
-      {/* VIEW MODES */}
-      {!isCreating ? (
-        
-        /* ── PRODUCTS LIST ── */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((prod) => (
-            <div key={prod.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-slate-300 hover:shadow-sm transition flex flex-col justify-between">
-              
-              {/* Product Thumbnail */}
-              <div className="h-48 bg-slate-50 relative overflow-hidden flex items-center justify-center border-b border-slate-200">
-                <img 
-                  src={prod.images && prod.images[0] ? prod.images[0] : 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400&h=300'} 
-                  alt={prod.name}
-                  className="w-full h-full object-cover" 
-                />
-                <div className="absolute top-3 right-3 flex gap-2">
-                  <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold border uppercase ${
-                    prod.status === 'In Stock' 
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                      : 'bg-rose-50 text-rose-600 border-rose-200'
-                  }`}>
-                    {prod.status}
-                  </span>
-                  <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold border uppercase ${
-                    prod.visibility === 'Visible' 
-                      ? 'bg-teal-50 text-teal-650 border-teal-200' 
-                      : 'bg-slate-100 text-slate-500 border-slate-200'
-                  }`}>
-                    {prod.visibility}
-                  </span>
-                </div>
-              </div>
-
-              {/* Product Body */}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4 text-left">
-                <div className="space-y-1">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">SKU: {prod.sku}</p>
-                  <h3 className="text-base font-extrabold text-[#172B4D] leading-tight">{prod.name}</h3>
-                  <p className="text-xs text-slate-500 line-clamp-2 pt-1">{prod.description}</p>
-                </div>
-
-                {/* Price and Details */}
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-black text-slate-800">₹{prod.offerPrice.toLocaleString()}</span>
-                  {prod.price > prod.offerPrice && (
-                    <span className="text-xs text-slate-400 line-through">₹{prod.price.toLocaleString()}</span>
+      {!open ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {products.map((p) => (
+            <div key={p.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-slate-300 hover:shadow-sm transition flex flex-col text-left">
+              <div className="h-44 bg-slate-50 relative flex items-center justify-center border-b border-slate-200">
+                {p.images?.[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={assetUrl(p.images[0])} alt={p.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Package className="h-10 w-10 text-slate-300" />
+                )}
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                  {p.isFeatured && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-700">
+                      <Star className="h-3 w-3" /> Featured
+                    </span>
                   )}
-                  <span className="text-[9px] font-bold text-teal-600 uppercase bg-teal-50 px-1.5 py-0.5 rounded">
-                    {Math.round(((prod.price - prod.offerPrice) / prod.price) * 100)}% OFF
+                  {p.visibility === 'Hidden' && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-500">
+                      <EyeOff className="h-3 w-3" /> Hidden
+                    </span>
+                  )}
+                  <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${p.status === 'In Stock' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
+                    {p.status}
                   </span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-xs font-semibold">
-                  <div>
-                    <span className="text-slate-400 block text-[9px] uppercase tracking-wider">CURRENT STOCK</span>
-                    <span className="text-slate-700 font-bold">{prod.stock} units</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[9px] uppercase tracking-wider">WEIGHT / DIM</span>
-                    <span className="text-slate-750 font-bold truncate block">{prod.weight || 'N/A'}</span>
-                  </div>
+              </div>
+              <div className="p-5 flex-1 space-y-3">
+                <div>
+                  <p className="text-[10px] font-bold text-teal-700 uppercase tracking-wider">{p.kitType?.name ?? 'No kit type'}</p>
+                  <h3 className="mt-0.5 text-base font-extrabold text-[#172B4D] leading-tight">{p.name}</h3>
+                  {p.tripLength && <p className="mt-0.5 text-xs font-semibold text-slate-500">{p.tripLength}</p>}
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-black text-slate-800">{inr(p.price)}</span>
+                  {p.mrp > p.price && <span className="text-xs text-slate-400 line-through">{inr(p.mrp)}</span>}
+                </div>
+                <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-[11px] font-semibold">
+                  <div><span className="block text-[9px] uppercase tracking-wider text-slate-400">Medicines</span>{p.counts?.medicines ?? 0} · {p.counts?.categories ?? 0} cat.</div>
+                  <div><span className="block text-[9px] uppercase tracking-wider text-slate-400">Consults</span>{p.consultsIncluded} free</div>
+                  <div><span className="block text-[9px] uppercase tracking-wider text-slate-400">Stock</span><span className={p.stock <= 10 ? 'text-rose-600' : ''}>{p.stock}</span></div>
                 </div>
               </div>
-
-              {/* Actions Footer */}
-              <div className="bg-slate-50/50 border-t border-slate-100 px-5 py-3 flex gap-3 justify-end">
-                <button 
-                  onClick={() => handleEdit(prod)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-600 font-bold rounded-xl transition cursor-pointer"
-                >
+              <div className="bg-slate-50/50 border-t border-slate-100 px-5 py-3 flex gap-2 justify-end">
+                <button onClick={() => duplicate(p)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-600 font-bold rounded-xl cursor-pointer">
+                  <Copy className="h-3.5 w-3.5" /> Duplicate
+                </button>
+                <button onClick={() => openEditor(fromProduct(p), p.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-600 font-bold rounded-xl cursor-pointer">
                   <Edit2 className="h-3.5 w-3.5" /> Edit
                 </button>
                 {products.length > 1 && (
-                  <button 
-                    onClick={() => handleDelete(prod.id, prod.name)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-500 hover:text-white text-xs text-rose-650 font-bold rounded-xl transition cursor-pointer"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  <button onClick={() => handleDelete(p)} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-500 hover:text-white text-xs text-rose-600 font-bold rounded-xl cursor-pointer">
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
-
             </div>
           ))}
+          {products.length === 0 && <p className="col-span-full py-12 text-center text-sm text-slate-400">No kits yet. Create your first kit.</p>}
         </div>
-
       ) : (
-
-        /* ── CREATE / EDIT PRODUCT TABS FORM ── */
-        <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-2xl text-left space-y-6 p-6">
-          
-          {/* Form Header */}
+        <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-2xl text-left space-y-6 p-6 text-xs font-semibold">
           <div className="flex justify-between items-center border-b border-slate-100 pb-4">
             <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="h-4.5 w-4.5 text-teal-650" /> {editingId ? 'Edit Product Setup' : 'Create New Kit Registry'}
+              <Sparkles className="h-4 w-4 text-teal-600" /> {editingId ? `Edit ${form.name || 'kit'}` : 'New kit'}
             </h3>
-            <button 
-              type="button" 
-              onClick={() => setIsCreating(false)}
-              className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full cursor-pointer"
-            >
+            <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full cursor-pointer">
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Form Navigation Tabs */}
-          <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-2">
-            {[
-              { id: 'general', label: 'General & Pricing', icon: Package },
-              { id: 'features', label: 'Highlights & Specs', icon: ListPlus },
-              { id: 'seo_faq', label: 'FAQ & SEO Meta', icon: Globe },
-              { id: 'media', label: 'Media Assets', icon: ImageIcon }
-            ].map(tab => (
+          {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-600">{error}</div>}
+
+          <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-3">
+            {TABS.map((t) => (
               <button
-                key={tab.id}
+                key={t.id}
                 type="button"
-                onClick={() => setFormTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  formTab === tab.id 
-                    ? 'bg-[#0B4F8C] text-white shadow-sm font-black' 
-                    : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                }`}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition cursor-pointer ${tab === t.id ? 'bg-[#0B4F8C] text-white' : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
               >
-                {React.createElement(tab.icon, { className: "h-3.5 w-3.5" })}
-                {tab.label}
+                <t.icon className="h-3.5 w-3.5" /> {t.label}
               </button>
             ))}
           </div>
 
-          {/* FORM VIEW CONTROLLER */}
-          <div className="min-h-[300px]">
-            
-            {/* T1: GENERAL AND PRICING */}
-            {formTab === 'general' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-semibold">
-                
-                {/* Product Name */}
-                <div className="space-y-1.5 col-span-1 md:col-span-2">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Product Name</label>
-                  <input 
-                    type="text" 
-                    value={name} 
-                    onChange={e => setName(e.target.value)} 
-                    placeholder="e.g. Travel Med Premium Kit"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C] focus:ring-1 focus:ring-[#0B4F8C]"
-                    required
-                  />
-                </div>
-
-                {/* SKU & Stock */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">SKU Code</label>
-                  <input 
-                    type="text" 
-                    value={sku} 
-                    onChange={e => setSku(e.target.value)} 
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C]"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Stock Units Available</label>
-                  <input 
-                    type="number" 
-                    value={stock || ''} 
-                    onChange={e => setStock(e.target.value ? parseInt(e.target.value) : ('' as any))} 
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-
-                {/* Prices */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Base Price (INR)</label>
-                  <input 
-                    type="number" 
-                    value={price || ''} 
-                    onChange={e => setPrice(e.target.value ? parseFloat(e.target.value) : ('' as any))} 
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C] font-mono"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Offer / Sale Price (INR)</label>
-                  <input 
-                    type="number" 
-                    value={offerPrice || ''} 
-                    onChange={e => setOfferPrice(e.target.value ? parseFloat(e.target.value) : ('' as any))} 
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C] font-mono"
-                  />
-                </div>
-
-                {/* Logistics */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Weight (grams/kg)</label>
-                  <input 
-                    type="text" 
-                    value={weight} 
-                    onChange={e => setWeight(e.target.value)} 
-                    placeholder="e.g. 750g"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Dimensions (L x W x H)</label>
-                  <input 
-                    type="text" 
-                    value={dimensions} 
-                    onChange={e => setDimensions(e.target.value)} 
-                    placeholder="e.g. 20cm x 12cm x 6cm"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-
-                {/* Status Options */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Inventory Status</label>
-                  <select 
-                    value={status} 
-                    onChange={e => setStatus(e.target.value as any)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C]"
-                  >
-                    <option value="In Stock">In Stock</option>
-                    <option value="Out of Stock">Out of Stock</option>
+          <div className="min-h-[320px]">
+            {tab === 'general' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Field label="Kit name" wide>
+                  <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Short-Trip Travel Kit" className={inputCls} required />
+                </Field>
+                <Field label="Kit type" hint="Manage kit types in Categories.">
+                  <select value={form.kitTypeId} onChange={(e) => set('kitTypeId', e.target.value)} className={inputCls}>
+                    <option value="">— None —</option>
+                    {kitTypes.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
                   </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Visibility Mode</label>
-                  <select 
-                    value={visibility} 
-                    onChange={e => setVisibility(e.target.value as any)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C]"
-                  >
-                    <option value="Visible">Visible (On Storefront)</option>
-                    <option value="Hidden">Hidden (Internal Draft)</option>
+                </Field>
+                <Field label="Trip length" hint="Shown on the kit card, e.g. “Trips up to 10 days”.">
+                  <input value={form.tripLength} onChange={(e) => set('tripLength', e.target.value)} className={inputCls} />
+                </Field>
+                <Field label="Tagline" wide>
+                  <input value={form.tagline} onChange={(e) => set('tagline', e.target.value)} placeholder="One line that sells this kit" className={inputCls} />
+                </Field>
+                <Field label="Description" wide>
+                  <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={4} className={`${inputCls} leading-relaxed`} />
+                </Field>
+                <Field label="URL slug" hint={editingId ? 'The kit ID stays the same; the slug changes the web address /buy/<slug>.' : 'Web address: /buy/<slug>. Leave blank to use the name.'}>
+                  <input value={form.slug} onChange={(e) => set('slug', e.target.value)} placeholder="short-trip-kit" className={inputCls} />
+                </Field>
+                <Field label="Display order" hint="Lower numbers appear first.">
+                  <input type="number" value={form.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value))} className={inputCls} />
+                </Field>
+                <label className="md:col-span-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4 cursor-pointer">
+                  <input type="checkbox" checked={form.isFeatured} onChange={(e) => set('isFeatured', e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0B4F8C]" />
+                  <span>
+                    <span className="block font-bold text-slate-800">Featured kit</span>
+                    <span className="text-[11px] font-medium text-slate-500">Used on the home page hero, price banner and FAQ. Only one kit can be featured.</span>
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {tab === 'pricing' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Field label="MRP (₹) — shown struck through">
+                  <input type="number" min={0} value={form.mrp || ''} onChange={(e) => set('mrp', Number(e.target.value))} className={`${inputCls} font-mono`} />
+                </Field>
+                <Field label="Selling price (₹) — charged on the website">
+                  <input type="number" min={0} value={form.price || ''} onChange={(e) => set('price', Number(e.target.value))} className={`${inputCls} font-mono`} />
+                </Field>
+                {form.mrp > 0 && form.price > 0 && form.price <= form.mrp && (
+                  <p className="md:col-span-2 rounded-xl bg-teal-50 px-4 py-2.5 text-teal-700">
+                    Customers see “Save {Math.round(((form.mrp - form.price) / form.mrp) * 100)}% · You save {inr(form.mrp - form.price)}”.
+                  </p>
+                )}
+                <Field label="GST %">
+                  <input type="number" min={0} max={28} value={form.gstPercent} onChange={(e) => set('gstPercent', Number(e.target.value))} className={inputCls} />
+                </Field>
+                <Field label="SKU">
+                  <input value={form.sku} onChange={(e) => set('sku', e.target.value)} placeholder="TM-KIT-SHORT" className={inputCls} />
+                </Field>
+                <Field label="Stock units">
+                  <input type="number" min={0} value={form.stock} onChange={(e) => set('stock', Number(e.target.value))} className={inputCls} />
+                </Field>
+                <Field label="Stock status">
+                  <select value={form.status} onChange={(e) => set('status', e.target.value as KitForm['status'])} className={inputCls}>
+                    <option>In Stock</option>
+                    <option>Out of Stock</option>
                   </select>
-                </div>
-
-                {/* Description */}
-                <div className="space-y-1.5 col-span-1 md:col-span-2">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider">Product Description</label>
-                  <textarea 
-                    value={description} 
-                    onChange={e => setDescription(e.target.value)} 
-                    rows={4}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-855 focus:outline-none focus:border-[#0B4F8C] leading-relaxed"
-                  />
-                </div>
-
+                </Field>
+                <Field label="Visibility" wide>
+                  <select value={form.visibility} onChange={(e) => set('visibility', e.target.value as KitForm['visibility'])} className={inputCls}>
+                    <option value="Visible">Visible on the website</option>
+                    <option value="Hidden">Hidden (draft)</option>
+                  </select>
+                </Field>
               </div>
             )}
 
-            {/* T2: FEATURES AND SPECIFICATIONS */}
-            {formTab === 'features' && (
-              <div className="space-y-6 text-xs font-semibold">
-                
-                {/* Highlights List Builder */}
-                <div className="space-y-3">
-                  <label className="text-slate-505 font-bold uppercase tracking-wider block text-left">Product Highlights</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={newHighlight} 
-                      onChange={e => setNewHighlight(e.target.value)} 
-                      placeholder="Add highlight point..."
-                      className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        if (newHighlight.trim()) {
-                          setHighlights([...highlights, newHighlight.trim()]);
-                          setNewHighlight('');
-                        }
-                      }}
-                      className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-teal-650 rounded-xl border border-slate-200 font-bold"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {highlights.map((h, i) => (
-                      <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-slate-600 font-medium">
-                        {h}
-                        <button type="button" onClick={() => setHighlights(highlights.filter((_, idx) => idx !== i))} className="text-rose-600 hover:text-rose-500">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
+            {tab === 'contents' && (
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <p className="rounded-xl bg-[#EEF6FF] px-4 py-2.5 font-bold text-[#0B4F8C]">
+                    {totals.medicines} medicines · {totals.units} units · {totals.categories} categories
+                  </p>
+                  <div className="relative md:w-72">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input value={medSearch} onChange={(e) => setMedSearch(e.target.value)} placeholder="Search medicines…" className={`${inputCls} pl-9`} />
                   </div>
                 </div>
-
-                {/* Benefits List Builder */}
-                <div className="space-y-3">
-                  <label className="text-slate-505 font-bold uppercase tracking-wider block text-left">Client Benefits</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={newBenefit} 
-                      onChange={e => setNewBenefit(e.target.value)} 
-                      placeholder="Add benefit statement..."
-                      className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        if (newBenefit.trim()) {
-                          setBenefits([...benefits, newBenefit.trim()]);
-                          setNewBenefit('');
-                        }
-                      }}
-                      className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-teal-650 rounded-xl border border-slate-200 font-bold"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {benefits.map((b, i) => (
-                      <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-slate-600 font-medium">
-                        {b}
-                        <button type="button" onClick={() => setBenefits(benefits.filter((_, idx) => idx !== i))} className="text-rose-600 hover:text-rose-500">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Specifications Key Value Builder */}
-                <div className="space-y-3">
-                  <label className="text-slate-505 font-bold uppercase tracking-wider block text-left">Specifications Registry</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={newSpecKey} 
-                      onChange={e => setNewSpecKey(e.target.value)} 
-                      placeholder="Property Name (e.g. Material)"
-                      className="w-1/3 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                    />
-                    <input 
-                      type="text" 
-                      value={newSpecVal} 
-                      onChange={e => setNewSpecVal(e.target.value)} 
-                      placeholder="Value (e.g. Nylon)"
-                      className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        if (newSpecKey.trim() && newSpecVal.trim()) {
-                          setSpecs({ ...specs, [newSpecKey.trim()]: newSpecVal.trim() });
-                          setNewSpecKey('');
-                          setNewSpecVal('');
-                        }
-                      }}
-                      className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-teal-650 rounded-xl border border-slate-200 font-bold"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    {Object.entries(specs).map(([k, v]) => (
-                      <div key={k} className="flex justify-between items-center px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
-                        <div className="text-left">
-                          <span className="text-[9px] font-bold text-slate-450 block uppercase">{k}</span>
-                          <span className="text-slate-700 font-bold">{v}</span>
-                        </div>
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            const copy = { ...specs };
-                            delete copy[k];
-                            setSpecs(copy);
-                          }}
-                          className="text-rose-600 hover:text-rose-500 hover:bg-slate-100 p-1 rounded"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                <p className="text-[11px] font-medium text-slate-400">Tick the medicines in this kit and set how much is included. Add new medicines in the Medicines screen.</p>
+                <div className="space-y-4">
+                  {groupedMedicines.map(([catId, g]) => (
+                    <div key={catId} className="rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2 font-bold text-slate-700">
+                        {g.icon ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={assetUrl(g.icon)} alt="" className="h-5 w-5 object-contain" />
+                        ) : (
+                          <Pill className="h-4 w-4 text-slate-400" />
+                        )}
+                        {g.name}
+                        <span className="ml-auto text-[10px] text-slate-400">{g.meds.filter((m) => itemByMed.has(m.id)).length}/{g.meds.length}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* T3: FAQ & SEO METADATA */}
-            {formTab === 'seo_faq' && (
-              <div className="space-y-6 text-xs font-semibold">
-                
-                {/* FAQs Accordion Builder */}
-                <div className="space-y-3">
-                  <label className="text-slate-505 font-bold uppercase tracking-wider block text-left">Product FAQ Builder</label>
-                  <div className="space-y-2.5 bg-slate-50 border border-slate-200 rounded-xl p-4">
-                    <input 
-                      type="text" 
-                      value={newFaqQ} 
-                      onChange={e => setNewFaqQ(e.target.value)} 
-                      placeholder="Frequently Asked Question..."
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                    />
-                    <textarea 
-                      value={newFaqA} 
-                      onChange={e => setNewFaqA(e.target.value)} 
-                      placeholder="Answer details..."
-                      rows={2}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-slate-800 focus:outline-none focus:border-[#0B4F8C] leading-relaxed"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        if (newFaqQ.trim() && newFaqA.trim()) {
-                          setFaqs([...faqs, { q: newFaqQ.trim(), a: newFaqA.trim() }]);
-                          setNewFaqQ('');
-                          setNewFaqA('');
-                        }
-                      }}
-                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl border border-slate-200 font-bold text-center"
-                    >
-                      Register FAQ Node
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {faqs.map((faq, i) => (
-                      <div key={i} className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between gap-4">
-                        <div className="space-y-1 text-left">
-                          <p className="font-bold text-slate-800 flex items-center gap-1.5"><HelpCircle className="h-3.5 w-3.5 text-blue-600 shrink-0" /> {faq.q}</p>
-                          <p className="text-slate-500 pl-5">{faq.a}</p>
-                        </div>
-                        <button 
-                          type="button" 
-                          onClick={() => setFaqs(faqs.filter((_, idx) => idx !== i))}
-                          className="text-rose-600 hover:text-rose-500 shrink-0 self-start p-1 rounded hover:bg-slate-100"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      <div className="divide-y divide-slate-100">
+                        {g.meds.map((m) => {
+                          const item = itemByMed.get(m.id);
+                          return (
+                            <div key={m.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-2.5 ${item ? 'bg-teal-50/30' : ''}`}>
+                              <label className="flex flex-1 items-center gap-3 cursor-pointer min-w-0">
+                                <input type="checkbox" checked={Boolean(item)} onChange={() => toggleMedicine(m.id)} className="h-4 w-4 accent-[#0B4F8C]" />
+                                <span className="min-w-0">
+                                  <span className="block truncate font-bold text-slate-800">{m.name}</span>
+                                  <span className="block truncate text-[10px] font-medium text-slate-400">{m.activeIngredient}</span>
+                                </span>
+                              </label>
+                              {item && (
+                                <div className="flex items-center gap-2">
+                                  <input type="number" min={1} value={item.quantity} onChange={(e) => patchItem(m.id, { quantity: Number(e.target.value) })} aria-label="Quantity" className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 font-mono" />
+                                  <select value={item.unit} onChange={(e) => patchItem(m.id, { unit: e.target.value })} aria-label="Unit" className="rounded-lg border border-slate-200 px-2 py-1.5">
+                                    {[...new Set([...UNITS, item.unit])].map((u) => <option key={u}>{u}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+                  {groupedMedicines.length === 0 && <p className="py-8 text-center text-slate-400">No medicines match.</p>}
                 </div>
-
-                {/* SEO Optimization Fields */}
-                <div className="space-y-4 border-t border-slate-200 pt-6">
-                  <h4 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider flex items-center gap-1.5"><Globe className="h-4.5 w-4.5 text-teal-650" /> Search Engine Optimizations</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-slate-500 font-bold uppercase tracking-wider">SEO Meta Title</label>
-                      <input 
-                        type="text" 
-                        value={seoTitle} 
-                        onChange={e => setSeoTitle(e.target.value)} 
-                        placeholder="Google Title Tag..."
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                      />
-                    </div>
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-slate-500 font-bold uppercase tracking-wider">SEO Focus Keywords</label>
-                      <input 
-                        type="text" 
-                        value={seoKeys} 
-                        onChange={e => setSeoKeys(e.target.value)} 
-                        placeholder="Keywords separated by commas..."
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                      />
-                    </div>
-                    <div className="space-y-1.5 text-left col-span-1 md:col-span-2">
-                      <label className="text-slate-500 font-bold uppercase tracking-wider">SEO Meta Description</label>
-                      <textarea 
-                        value={seoDesc} 
-                        onChange={e => setSeoDesc(e.target.value)} 
-                        rows={2}
-                        placeholder="Brief summary snippet for search results..."
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                      />
-                    </div>
-                  </div>
-                </div>
-
               </div>
             )}
 
-            {/* T4: MEDIA ASSETS GALLERY */}
-            {formTab === 'media' && (
-              <div className="space-y-6 text-xs font-semibold">
-                
-                {/* Image Gallery Uploader Mock */}
-                <div className="space-y-3">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider block text-left">Add Image to Gallery</label>
+            {tab === 'bag' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Field label="Bag size (L × W × H)">
+                  <input value={form.bagSize} onChange={(e) => set('bagSize', e.target.value)} placeholder="e.g. 21 × 14 × 6 cm" className={inputCls} />
+                </Field>
+                <Field label="Packed weight">
+                  <input value={form.bagWeight} onChange={(e) => set('bagWeight', e.target.value)} placeholder="e.g. 650 g" className={inputCls} />
+                </Field>
+                <div className="md:col-span-2 rounded-xl border border-teal-100 bg-teal-50/40 p-4 space-y-2">
+                  <label className={`${labelCls} flex items-center gap-1.5`}><Stethoscope className="h-3.5 w-3.5" /> Free teleconsultations per kit</label>
+                  <input type="number" min={0} max={10} value={form.consultsIncluded} onChange={(e) => set('consultsIncluded', Number(e.target.value))} className={`${inputCls} md:w-40`} />
+                  <p className="text-[11px] font-medium text-slate-500">An order gets this many per kit bought (2 kits × {form.consultsIncluded} = {2 * form.consultsIncluded}). Set 0 if this kit has no doctor consultations.</p>
+                </div>
+                <div className="md:col-span-2 space-y-2">
+                  <label className={labelCls}>Other specifications</label>
+                  {Object.entries(form.specs).map(([k, v]) => (
+                    <div key={k} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="w-40 shrink-0 font-bold text-slate-700">{k}</span>
+                      <span className="flex-1 truncate text-slate-600">{v}</span>
+                      <button type="button" aria-label="Remove" onClick={() => set('specs', Object.fromEntries(Object.entries(form.specs).filter(([key]) => key !== k)))} className="text-slate-400 hover:text-rose-600 cursor-pointer"><X className="h-3.5 w-3.5" /></button>
+                    </div>
+                  ))}
                   <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={newImageUrl} 
-                      onChange={e => setNewImageUrl(e.target.value)} 
-                      placeholder="Paste image URL..."
-                      className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        if (newImageUrl.trim()) {
-                          setImages([...images, newImageUrl.trim()]);
-                          setNewImageUrl('');
-                        }
-                      }}
-                      className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-teal-650 rounded-xl border border-slate-200 font-bold"
-                    >
-                      Insert
-                    </button>
+                    <input value={specKey} onChange={(e) => setSpecKey(e.target.value)} placeholder="e.g. Material" className={inputCls} />
+                    <input value={specVal} onChange={(e) => setSpecVal(e.target.value)} placeholder="e.g. 1680D ballistic nylon" className={inputCls} />
+                    <button type="button" onClick={() => { if (specKey.trim() && specVal.trim()) { set('specs', { ...form.specs, [specKey.trim()]: specVal.trim() }); setSpecKey(''); setSpecVal(''); } }} className="shrink-0 rounded-xl bg-[#0B4F8C] px-4 font-bold text-white cursor-pointer">Add</button>
                   </div>
                 </div>
-
-                <div className="space-y-2 text-left">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider block">Active Asset Files ({images.length})</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {images.map((img, i) => (
-                      <div key={i} className="relative aspect-video rounded-xl bg-slate-50 border border-slate-200 overflow-hidden group">
-                        <img src={img} alt="Gallery item" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition duration-200">
-                          <button 
-                            type="button"
-                            onClick={() => setImages(images.filter((_, idx) => idx !== i))}
-                            className="p-1.5 bg-rose-500 text-white hover:bg-rose-600 rounded-lg transition"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
               </div>
             )}
 
+            {tab === 'details' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Field label="Highlights (bullet points on the kit page)">
+                  <ListEditor values={form.highlights} onChange={(v) => set('highlights', v)} placeholder="e.g. Doctor-signed prescription" />
+                </Field>
+                <Field label="Benefits">
+                  <ListEditor values={form.benefits} onChange={(v) => set('benefits', v)} placeholder="e.g. Avoid pharmacy hunts abroad" />
+                </Field>
+                <div className="md:col-span-2 space-y-2">
+                  <label className={labelCls}>Kit FAQs</label>
+                  {form.faqs.map((f, i) => (
+                    <div key={i} className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex-1"><p className="font-bold text-slate-800">{f.q}</p><p className="mt-1 font-medium text-slate-500">{f.a}</p></div>
+                      <button type="button" aria-label="Remove" onClick={() => set('faqs', form.faqs.filter((_, j) => j !== i))} className="text-slate-400 hover:text-rose-600 cursor-pointer"><X className="h-3.5 w-3.5" /></button>
+                    </div>
+                  ))}
+                  <input value={faqQ} onChange={(e) => setFaqQ(e.target.value)} placeholder="Question" className={inputCls} />
+                  <textarea value={faqA} onChange={(e) => setFaqA(e.target.value)} placeholder="Answer" rows={2} className={inputCls} />
+                  <button type="button" onClick={() => { if (faqQ.trim() && faqA.trim()) { set('faqs', [...form.faqs, { q: faqQ.trim(), a: faqA.trim() }]); setFaqQ(''); setFaqA(''); } }} className="rounded-xl bg-[#0B4F8C] px-4 py-2 font-bold text-white cursor-pointer">Add FAQ</button>
+                </div>
+              </div>
+            )}
+
+            {tab === 'media' && (
+              <div className="space-y-4">
+                <Field label="Photo URLs" hint="First photo is the main image. Use website paths like /products/trollybag.webp or full URLs.">
+                  <ListEditor values={form.images} onChange={(v) => set('images', v)} placeholder="/products/backpack.webp" />
+                </Field>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {form.images.map((src, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={`${src}-${i}`} src={assetUrl(src)} alt="" className="aspect-square w-full rounded-xl border border-slate-200 object-cover" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === 'seo' && (
+              <div className="grid grid-cols-1 gap-5">
+                <Field label={`SEO title (${form.seoTitle.length}/60)`}>
+                  <input value={form.seoTitle} onChange={(e) => set('seoTitle', e.target.value)} maxLength={120} className={inputCls} />
+                </Field>
+                <Field label={`SEO description (${form.seoDescription.length}/160)`}>
+                  <textarea value={form.seoDescription} onChange={(e) => set('seoDescription', e.target.value)} maxLength={320} rows={3} className={inputCls} />
+                </Field>
+              </div>
+            )}
           </div>
 
-          {/* Form Actions Footer */}
-          <div className="border-t border-slate-100 pt-4 flex justify-end gap-3">
-            <button 
-              type="button" 
-              onClick={() => setIsCreating(false)}
-              className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-600 font-bold rounded-xl transition cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit"
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-[#0B4F8C] hover:bg-[#083B69] text-white font-bold text-xs rounded-xl transition cursor-pointer"
-            >
-              <Save className="h-4 w-4" /> Save Kit Configuration
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+            <button type="button" onClick={() => setOpen(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 cursor-pointer">Cancel</button>
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0B4F8C] font-bold text-white hover:bg-[#0B4F8C]/90 disabled:opacity-60 cursor-pointer">
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saving ? 'Saving…' : 'Save & publish to website'}
             </button>
           </div>
-
         </form>
       )}
-
     </div>
   );
 }

@@ -3,16 +3,38 @@
 import React, { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Doctor } from '@/types';
-import { Card } from '@/shared/ui/Card';
-import { Badge } from '@/shared/ui/Badge';
-import { Button } from '@/shared/ui/Button';
 import { Rating } from '@/shared/ui/Rating';
-import { ArrowLeft, Clock, ShieldCheck, Languages, Award, Video, Calendar, Check, Link as LinkIcon, RefreshCw } from 'lucide-react';
+import { Avatar } from '@/shared/ui/Avatar';
+import {
+  ArrowLeft,
+  ShieldCheck,
+  Languages,
+  Award,
+  Video,
+  Calendar,
+  Check,
+  Link as LinkIcon,
+  RefreshCw,
+  Clock,
+  Sun,
+  Moon,
+  CalendarClock,
+  Loader2,
+  Stethoscope,
+  UserX,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
+
+const slots = [
+  { label: 'Doctor Contact in 8–12 Hrs', icon: Clock },
+  { label: 'Next Morning Callback', icon: Sun },
+  { label: 'Evening Callback Slot', icon: Moon },
+  { label: 'Flexible Callback', icon: CalendarClock },
+];
 
 export default function DoctorDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
@@ -20,7 +42,7 @@ export default function DoctorDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [bookingTime, setBookingTime] = useState('');
   const [success, setSuccess] = useState(false);
-  const [bookingLoading, setBookingLoading] = useState(false); // rename to avoid collision with load state
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/doctors/${resolvedParams.id}`)
@@ -45,179 +67,191 @@ export default function DoctorDetailPage({ params }: PageProps) {
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4 font-sans">
-        <h3 className="text-xl font-bold">Loading Doctor Details...</h3>
+      <div className="flex-1 bg-background font-sans">
+        <div className="h-64 bg-gradient-to-br from-primary-dark via-primary to-[#0A3F70]" />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 -mt-24 pb-20">
+          <div className="animate-pulse rounded-[28px] border border-border bg-white p-8">
+            <div className="flex gap-6">
+              <div className="h-32 w-32 rounded-3xl bg-slate-200" />
+              <div className="flex-1 space-y-3 pt-2">
+                <div className="h-4 w-24 rounded bg-slate-200" />
+                <div className="h-7 w-2/3 rounded bg-slate-200" />
+                <div className="h-4 w-1/2 rounded bg-slate-200" />
+              </div>
+            </div>
+            <div className="mt-8 space-y-2.5">
+              <div className="h-3 rounded bg-slate-100" />
+              <div className="h-3 rounded bg-slate-100" />
+              <div className="h-3 w-4/5 rounded bg-slate-100" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!doc) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4 font-sans">
-        <h3 className="text-xl font-bold">Doctor Record Not Found</h3>
-        <p className="text-xs text-neutral-400">The requested physician is not registered in our travel medical panel.</p>
-        <Link href="/teleconsultation">
-          <Button size="sm">Back to Teleconsultation</Button>
-        </Link>
+      <div className="flex-1 flex items-center justify-center bg-background px-4 py-24 font-sans">
+        <div className="max-w-md rounded-[28px] border border-border bg-white p-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/5 text-primary">
+            <UserX className="h-6 w-6" />
+          </div>
+          <h1 className="mt-5 text-2xl font-bold font-heading">Doctor not found</h1>
+          <p className="mt-2 text-sm text-slate-500">The requested physician is not registered in our travel medical panel.</p>
+          <Link
+            href="/teleconsultation"
+            className="mt-6 inline-flex items-center gap-2 rounded-[14px] bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary-dark"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Teleconsultation
+          </Link>
+        </div>
       </div>
     );
   }
 
-
   return (
-    <div className="flex-1 bg-neutral-50 dark:bg-neutral-950 py-16 md:py-24 font-sans">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        
-        <div className="mb-6">
-          <Link href="/teleconsultation" className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-400 hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Teleconsultation Hub</span>
+    <div className="flex-1 bg-background font-sans">
+      {/* Header band */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary-dark via-primary to-[#0A3F70]">
+        <div aria-hidden className="absolute -top-32 right-[-10%] h-[360px] w-[360px] rounded-full bg-secondary/25 blur-[120px]" />
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-32">
+          <Link
+            href="/teleconsultation"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-white/70 transition hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Teleconsultation
           </Link>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* Profile details */}
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 -mt-24 pb-20 md:pb-28">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Profile */}
           <div className="lg:col-span-7 space-y-6">
-            <Card hoverEffect={false} className="p-8 border-border bg-card shadow-lg space-y-6">
-              
+            <div className="rounded-[28px] border border-border bg-white p-6 sm:p-8 shadow-[0_30px_80px_rgba(11,79,140,0.10)]">
               <div className="flex flex-col sm:flex-row gap-6 items-start">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={doc.image}
-                  alt={doc.name}
-                  className="w-32 h-32 rounded-3xl object-cover border border-primary/10 shadow-sm"
-                />
-                
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="primary">{doc.availability}</Badge>
-                  </div>
-                  <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight">{doc.name}</h1>
-                  <span className="text-xs md:text-sm text-primary font-bold uppercase tracking-wider block">
-                    {doc.specialty}
+                <Avatar src={doc.image} alt={doc.name} size="2xl" className="rounded-3xl ring-4 ring-white shadow-lg" />
+                <div className="min-w-0">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    {doc.availability}
                   </span>
-                  <Rating value={doc.rating} showText={true} className="mt-1" />
+                  <h1 className="mt-3 text-2xl md:text-3xl font-extrabold font-heading tracking-tight">{doc.name}</h1>
+                  <p className="mt-1 text-sm font-semibold text-primary">{doc.specialty}</p>
+                  <Rating value={doc.rating} showText={true} className="mt-3" />
                 </div>
               </div>
 
-              <div className="space-y-4 border-t border-border/40 pt-6 text-xs md:text-sm text-neutral-500 leading-relaxed">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100">Professional Bio</h3>
-                  <p>{doc.bio}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 border-t border-border/40 pt-4 text-xs">
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">
-                      Languages Spoken
-                    </span>
-                    <span className="font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
-                      <Languages className="h-4 w-4 text-primary" />
-                      <span>{doc.languages.join(', ')}</span>
-                    </span>
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { icon: Stethoscope, label: 'Experience', value: doc.experience },
+                  { icon: Languages, label: 'Languages', value: doc.languages.join(', ') },
+                  { icon: Award, label: 'Certification', value: 'Board Certified' },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="rounded-2xl border border-border bg-background/60 p-4">
+                    <Icon className="h-5 w-5 text-primary" />
+                    <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-heading">{value}</p>
                   </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">
-                      Certifications
-                    </span>
-                    <span className="font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
-                      <Award className="h-4 w-4 text-primary" />
-                      <span>Board Certified</span>
-                    </span>
-                  </div>
-                </div>
+                ))}
               </div>
 
-            </Card>
+              <div className="mt-8 border-t border-border pt-6">
+                <h2 className="text-lg font-bold font-heading">Professional bio</h2>
+                <p className="mt-2 text-[15px] text-slate-600 leading-relaxed">{doc.bio}</p>
+              </div>
+            </div>
           </div>
 
-          {/* Right Column: Booking widget */}
+          {/* Booking widget */}
           <div className="lg:col-span-5 lg:sticky lg:top-24">
-            <Card hoverEffect={false} className="p-6 bg-card border-border shadow-lg relative min-h-[350px] flex flex-col justify-between overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-secondary" />
+            <div className="relative min-h-[380px] overflow-hidden rounded-[28px] border border-border bg-white p-6 sm:p-7 shadow-[0_30px_80px_rgba(11,79,140,0.10)]">
+              <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-secondary" />
 
               <AnimatePresence mode="wait">
                 {!success ? (
-                  <motion.div
-                    key="scheduler"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-6"
-                  >
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Currently Consulting</span>
-                      <h3 className="text-lg font-black font-heading tracking-tight">Select Consult Time</h3>
+                  <motion.div key="scheduler" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-secondary-dark">Book a callback</p>
+                      <h2 className="mt-1.5 text-xl font-bold font-heading tracking-tight">Select a consult time</h2>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2.5">
-                      {['Connect Now (Wait < 3m)', 'In 15 minutes', 'In 1 hour', 'Tomorrow morning'].map((slot) => (
-                        <button
-                          key={slot}
-                          onClick={() => handleBook(slot)}
-                          className="p-4 border border-border rounded-xl text-center text-xs font-bold hover:border-primary hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer select-none focus:outline-none transition"
-                        >
-                          {slot}
-                        </button>
-                      ))}
+                    <div className="space-y-2.5">
+                      {slots.map(({ label, icon: Icon }) => {
+                        const isPending = bookingLoading && bookingTime === label;
+                        return (
+                          <button
+                            key={label}
+                            type="button"
+                            onClick={() => handleBook(label)}
+                            disabled={bookingLoading}
+                            className="group flex w-full items-center gap-3.5 rounded-2xl border border-border bg-white p-4 text-left text-sm font-semibold text-heading transition-all hover:border-primary/40 hover:shadow-[0_10px_30px_rgba(11,79,140,0.08)] disabled:opacity-60 cursor-pointer disabled:cursor-wait"
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/5 text-primary transition group-hover:bg-primary group-hover:text-white">
+                              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+                            </span>
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
 
-                    <div className="flex justify-center gap-1.5 text-[10px] text-neutral-400 font-semibold uppercase tracking-wider pt-2 border-t border-border/40">
-                      <ShieldCheck className="h-4 w-4 text-accent animate-pulse" />
-                      <span>Secured video waiting channel</span>
-                    </div>
+                    <p className="flex items-center justify-center gap-1.5 border-t border-border pt-4 text-xs text-slate-500">
+                      <ShieldCheck className="h-4 w-4 text-secondary-dark" /> Secured consultation channel
+                    </p>
                   </motion.div>
                 ) : (
                   <motion.div
                     key="success"
-                    initial={{ opacity: 0, scale: 0.95 }}
+                    initial={{ opacity: 0, scale: 0.97 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="text-center py-6 space-y-6 flex flex-col items-center justify-center"
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    className="flex flex-col items-center py-4 text-center"
                   >
-                    <div className="p-3 bg-accent-light text-accent rounded-full">
-                      <Check className="h-6 w-6" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary/10 ring-8 ring-secondary/5">
+                      <Check className="h-7 w-7 text-secondary-dark" />
                     </div>
+                    <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.16em] text-secondary-dark">Slot scheduled</p>
+                    <h2 className="mt-1.5 text-xl font-bold font-heading">Consultation reserved!</h2>
+                    <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                      Your appointment with {doc.name} is scheduled for {bookingTime}.
+                    </p>
 
-                    <div className="space-y-1">
-                      <Badge variant="accent">Slot Scheduled</Badge>
-                      <h4 className="font-extrabold text-sm md:text-base">Consultation Reserved!</h4>
-                      <p className="text-[10px] text-neutral-400 leading-relaxed max-w-[200px] mx-auto">
-                        Your appointment with {doc.name} is scheduled for {bookingTime}.
-                      </p>
-                    </div>
-
-                    <div className="w-full bg-neutral-50 dark:bg-neutral-950/40 rounded-xl border border-border p-4 text-[10px] text-left space-y-2.5">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        <span><strong>Time Slot:</strong> {bookingTime}</span>
+                    <dl className="mt-6 w-full divide-y divide-border rounded-2xl border border-border bg-background/60 text-left text-sm">
+                      <div className="flex items-center gap-2.5 px-4 py-3">
+                        <Calendar className="h-4 w-4 shrink-0 text-primary" />
+                        <dt className="text-slate-500">Time slot</dt>
+                        <dd className="ml-auto font-semibold text-heading text-right">{bookingTime}</dd>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <LinkIcon className="h-4 w-4 text-primary" />
-                        <span className="truncate"><strong>Call Meeting Code:</strong> <span className="text-primary underline cursor-pointer">zoom.us/tmed-call-29</span></span>
+                      <div className="flex items-center gap-2.5 px-4 py-3">
+                        <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
+                        <dt className="text-slate-500">Meeting</dt>
+                        <dd className="ml-auto truncate font-semibold text-primary">zoom.us/tmed-call-29</dd>
                       </div>
-                    </div>
+                    </dl>
 
-                    <div className="flex gap-2 w-full">
-                      <Button variant="outline" size="sm" onClick={() => setSuccess(false)} className="flex-1">
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        <span>Reset</span>
-                      </Button>
-                      <Button variant="primary" size="sm" className="flex-1">
-                        <Video className="h-3.5 w-3.5" />
-                        <span>Enter room</span>
-                      </Button>
+                    <div className="mt-6 grid w-full grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setSuccess(false)}
+                        className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-border bg-white px-4 py-3 text-sm font-semibold text-heading transition hover:border-primary/40 cursor-pointer"
+                      >
+                        <RefreshCw className="h-4 w-4" /> Reset
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-primary-dark cursor-pointer"
+                      >
+                        <Video className="h-4 w-4" /> Enter room
+                      </button>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-
-            </Card>
+            </div>
           </div>
-
         </div>
-
       </div>
     </div>
   );

@@ -220,7 +220,7 @@ export const medicines: Medicine[] = [
     dosage: 'Clean the area. Apply a thin layer 1-3 times daily.',
     warning: 'For external skin use only. Do not apply in eyes or large open wounds.',
     sideEffects: 'None. Rare local skin redness.',
-    fdaStatus: 'DGCI Approved / Over The Counter',
+    fdaStatus: 'DCGI Approved',
     travelNote: 'Apply after sanitizing the wound and before cover with a Band-Aid.',
     compartment: 'First Aid Pouch',
     alternative: 'Neosporin',

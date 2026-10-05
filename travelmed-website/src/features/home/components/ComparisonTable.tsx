@@ -6,11 +6,11 @@ import { Check, X, ShieldAlert } from 'lucide-react';
 export const ComparisonTable: React.FC = () => {
   const features = [
     {
-      name: "TSA Carry-on Compliant Blister Pack",
+      name: "Check-in Baggage Preferred Pack",
       travelmed: true,
       hotel: false,
       pharmacy: false,
-      details: "Fits easily into carry-on bags under TSA liquids/meds guidelines."
+      details: "Recommended to pack in check-in baggage for hassle-free airport transit."
     },
     {
       name: "Color-Coded Symptom Compartments",
@@ -24,7 +24,7 @@ export const ComparisonTable: React.FC = () => {
       travelmed: true,
       hotel: false, // "Can call local clinic"
       pharmacy: false,
-      details: "Consult  physicians in under 3 minutes via QR scan."
+      details: "Doctor contacts you within 8–12 hrs of booking."
     },
     {
       name: "Import Compliance Guidance",

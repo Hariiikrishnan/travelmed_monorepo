@@ -28,7 +28,7 @@ export const Hero: React.FC = () => {
             >
               <Badge variant="primary" className="px-3 py-1 flex items-center gap-1">
                 <Plane className="h-3.5 w-3.5" />
-                <span>TSA-Compliant Carry-On Medicine</span>
+                <span>Preferred: Carry in Check-in Baggage</span>
               </Badge>
             </motion.div>
 
@@ -51,7 +51,7 @@ export const Hero: React.FC = () => {
               animate="visible"
               className="text-neutral-500 dark:text-neutral-400 text-sm sm:text-base leading-relaxed max-w-lg"
             >
-              Meet the next-generation travel medical kit. 40+ clinical-grade, color-coded medications mapped to symptoms, combined with instant video access to certified doctors worldwide.
+              Meet the next-generation travel medical kit. 40+ clinical-grade, color-coded medications mapped to symptoms, combined with certified doctor teleconsultations (we contact you within 8–12 hours of booking).
             </motion.p>
 
             <motion.div

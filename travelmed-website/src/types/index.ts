@@ -56,6 +56,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   type: 'kit' | 'addon';
+  image?: string;
   description?: string;
   options?: {
     size?: 'Solo' | 'Couple' | 'Family';
@@ -67,17 +68,23 @@ export interface CartItem {
 export interface Order {
   orderId: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled' | 'Refunded';
+  paymentStatus?: 'Pending' | 'Paid' | 'Failed';
   trackingNumber: string;
   estimatedDelivery: string;
   items: CartItem[];
   subtotal: number;
+  discount?: number;
+  couponCode?: string | null;
   shippingCost: number;
   total: number;
+  createdAt?: string;
   shippingAddress: {
     fullName: string;
     address: string;
     city: string;
     country: string;
     zipCode: string;
+    phone?: string | null;
+    email?: string | null;
   };
 }

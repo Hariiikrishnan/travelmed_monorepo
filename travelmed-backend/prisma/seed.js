@@ -8,24 +8,100 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // 1. Create Default Admin Account
-  const adminEmail = 'admin@travelmed.com';
-  const adminPassword = 'AdminPassword123';
-  const hashedAdminPassword = await bcrypt.hash(adminPassword, 12);
+  // 1. Admin account — credentials come from the environment, never from code
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (adminEmail && adminPassword) {
+    if (adminPassword.length < 12) {
+      throw new Error('ADMIN_PASSWORD must be at least 12 characters long.');
+    }
+    const hashedAdminPassword = await bcrypt.hash(adminPassword, 12);
+    await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: {},
+      create: {
+        email: adminEmail,
+        password: hashedAdminPassword,
+        name: process.env.ADMIN_NAME || 'System Administrator',
+        role: 'admin'
+      }
+    });
+    console.log(`Admin account ensured: ${adminEmail}`);
+  } else {
+    console.log('ADMIN_EMAIL / ADMIN_PASSWORD not set — skipping admin account creation.');
+  }
 
-  await prisma.user.upsert({
-    where: { email: adminEmail },
+  // 1a. Kit types and the 17 curated medicine categories (icon '' = website's built-in icon)
+  const kitTypes = [
+    { id: 'kt-long-stay', slug: 'long-stay-abroad', name: 'Long-Stay Abroad', description: 'For travellers staying abroad for several weeks or months.', sortOrder: 1 },
+    { id: 'kt-short-trip', slug: 'short-trip', name: 'Short Trip', description: 'For holidays and business trips of a few days to two weeks.', sortOrder: 2 },
+  ];
+  for (const kt of kitTypes) {
+    await prisma.kitType.upsert({ where: { id: kt.id }, update: {}, create: kt });
+  }
+
+  const medicineCategories = [
+    ['cat-antacids', 'antacids', 'Antacids', '/icons/Antacids.webp'],
+    ['cat-pain-killers', 'pain-killers', 'Pain Killers & Analgesics', ''],
+    ['cat-antimotility', 'antimotility', 'Antimotility Drugs', '/icons/Antimotility Drugs.webp'],
+    ['cat-laxative', 'laxative', 'Laxative Stimulant', ''],
+    ['cat-antispasmodics', 'antispasmodics', 'Antispasmodics', ''],
+    ['cat-cough', 'cough-suppressant', 'Cough Suppressant', '/icons/cough.webp'],
+    ['cat-antibiotic', 'antibiotic', 'Antibiotic', '/icons/antibiotic.webp'],
+    ['cat-ors', 'ors-salts', 'ORS Salts', ''],
+    ['cat-antihistamine', 'antihistamine', 'Antihistamine', '/icons/antihistamines.webp'],
+    ['cat-motion-sickness', 'motion-sickness', 'Motion Sickness Tablets', '/icons/Motion Sickness Tablets.webp'],
+    ['cat-antiemetic', 'antiemetic', 'Antiemetic', ''],
+    ['cat-antipyretic', 'antipyretic', 'Antipyretic (Fever)', '/icons/Antipyretic.svg'],
+    ['cat-anti-cold', 'anti-cold', 'Anti Cold', '/icons/Anticold.webp'],
+    ['cat-sore-throat', 'sore-throat', 'Sore Throat Lozenges', '/icons/sore-throat.webp'],
+    ['cat-probiotics', 'probiotics', 'Pre & Probiotics', '/icons/probiotics.webp'],
+    ['cat-bandages', 'bandages', 'Bandages & Plasters', '/icons/bandage.webp'],
+    ['cat-first-aid', 'first-aid', 'First Aid Essentials', '/icons/bandage.webp'],
+  ];
+  for (const [id, slug, name, icon] of medicineCategories) {
+    await prisma.medicineCategory.upsert({
+      where: { id },
+      update: {},
+      create: { id, slug, name, icon, sortOrder: medicineCategories.findIndex((c) => c[0] === id) + 1 },
+    });
+  }
+  console.log(`Ensured ${kitTypes.length} kit types and ${medicineCategories.length} medicine categories.`);
+
+  // 1b. Travel Med Kit (Long-Stay Abroad, featured) — price/MRP/stock/contents are managed
+  // from the admin afterwards; re-seeding never overwrites admin changes.
+  await prisma.product.upsert({
+    where: { id: 'kit-standard-india' },
     update: {},
     create: {
-      email: adminEmail,
-      password: hashedAdminPassword,
-      name: 'System Administrator',
-      role: 'admin'
+      id: 'kit-standard-india',
+      slug: 'kit-standard-india',
+      name: 'Travel Med Kit - Standard Package',
+      sku: 'TM-KIT-STD',
+      mrp: 4500,
+      price: 2900,
+      gstPercent: 5,
+      stock: 500,
+      status: 'In Stock',
+      visibility: 'Visible',
+      description: 'Includes 150+ curated medicines, a signed doctor prescription, a waterproof pouch and 2 free teleconsultations.',
+      highlights: ['150+ curated medicines', '17 medicine categories', 'Signed doctor prescription', '2 free doctor teleconsultations'],
+      benefits: ['Avoid expensive clinic visits abroad', 'Doctor support while travelling'],
+      specs: { Material: '1680D ballistic nylon', Dimensions: '8.2 × 5.5 × 2.4 in', Zipper: 'YKK waterproof' },
+      faqs: [],
+      images: ['/pro.webp', '/products.webp', '/products/trollybag.webp', '/products/handbag.webp', '/products/backpack.webp', '/products/all rounder.webp'],
+      seoTitle: 'Buy Travel Medicine Kit Online in India',
+      seoDescription: 'Doctor-curated travel medical kit with 150+ medicines, a signed prescription and 2 free doctor consults.',
+      kitTypeId: 'kt-long-stay',
+      tagline: 'Complete travel pharmacy & medical pouch',
+      tripLength: 'Long stays abroad (15+ days)',
+      bagSize: '8.2 × 5.5 × 2.4 in',
+      consultsIncluded: 2,
+      isFeatured: true,
+      sortOrder: 1
     }
   });
-  console.log('Default Admin Account created:');
-  console.log(`- Email: ${adminEmail}`);
-  console.log(`- Password: ${adminPassword}`);
+  console.log('Travel Med Kit product ensured.');
 
   // 2. Seed Medicines
   const medicinesData = [
@@ -271,14 +347,42 @@ async function main() {
     }
   ];
 
+  // Which curated category each seeded medicine belongs to
+  const medicineCategoryMap = {
+    'med-digene': 'cat-antacids',
+    'med-aceclofenac': 'cat-pain-killers', 'med-combiflam': 'cat-pain-killers',
+    'med-diclofenac': 'cat-pain-killers', 'med-ibuprofen': 'cat-pain-killers',
+    'med-loperamide': 'cat-antimotility',
+    'med-amoxicillin': 'cat-antibiotic', 'med-antibiotic-ointment': 'cat-antibiotic',
+    'med-ors': 'cat-ors',
+    'med-cetirizine': 'cat-antihistamine', 'med-diphenhydramine': 'cat-antihistamine',
+    'med-avomine': 'cat-motion-sickness',
+    'med-paracetamol': 'cat-antipyretic',
+    'med-decongestant': 'cat-anti-cold',
+    'med-bandaid': 'cat-bandages',
+    'med-thermometer': 'cat-first-aid',
+  };
+  const categoryName = Object.fromEntries(medicineCategories.map(([id, , name]) => [id, name]));
+
   for (const med of medicinesData) {
+    const categoryId = medicineCategoryMap[med.id];
+    const data = categoryId ? { ...med, categoryId, category: categoryName[categoryId] } : med;
     await prisma.medicine.upsert({
       where: { id: med.id },
-      update: med,
-      create: med
+      update: data,
+      create: data
     });
   }
   console.log(`Seeded ${medicinesData.length} medicines.`);
+
+  // Starting contents for the Long-Stay kit if it has none yet (the admin sets real quantities)
+  if ((await prisma.kitItem.count({ where: { productId: 'kit-standard-india' } })) === 0) {
+    await prisma.kitItem.createMany({
+      data: medicinesData.map((med, i) => ({ productId: 'kit-standard-india', medicineId: med.id, quantity: 1, unit: 'pack', sortOrder: i })),
+      skipDuplicates: true
+    });
+    console.log('Added starting contents to the Long-Stay kit.');
+  }
 
   // 3. Seed Doctors
   const doctorsData = [
@@ -428,7 +532,7 @@ async function main() {
   const testimonialsData = [
     {
       id: 'test-1',
-      name: 'Sarah Jenkins',
+      name: 'Sowmya Ramakrishnan',
       location: 'New York, USA',
       tripType: '2 Weeks in Bali',
       quote: 'My husband got the infamous Bali Belly on day 3. Having the Travel Med kit in our hotel room saved us a trip to the local clinic. The color-coded diarrhea guide was foolproof, and we were back on the beach by the next afternoon!',
@@ -437,7 +541,7 @@ async function main() {
     },
     {
       id: 'test-2',
-      name: 'David Chen',
+      name: 'Venkatesh Iyer',
       location: 'San Francisco, USA',
       tripType: 'Trekking in Peru',
       quote: 'At 11,000 feet, I got a pounding headache and stomach nausea. I popped the Travel-Ibuprofen and mixed the rehydration salts. Within an hour, I felt stable enough to finish the day. This kit is literally a lifesaver for outdoor treks.',
@@ -446,7 +550,7 @@ async function main() {
     },
     {
       id: 'test-3',
-      name: 'Emma Watson-Smith',
+      name: 'Ananya Nair',
       location: 'London, UK',
       tripType: 'Southeast Asia Backpacking',
       quote: 'I scratched my ankle on coral while snorkeling. I cleaned it with the alcohol wipes, applied the triple antibiotic ointment, and taped a waterproof dressing. It healed beautifully without any of the tropical infections my friends suffered.',
@@ -455,7 +559,7 @@ async function main() {
     },
     {
       id: 'test-4',
-      name: 'Carlos Ruiz',
+      name: 'Karthik Menon',
       location: 'Madrid, Spain',
       tripType: 'Business in Tokyo & Kyoto',
       quote: 'Adjusting to the flights and time difference was rough, but having the sinus decongestant saved my ears during the descent. The teleconsultation doctor (Dr. Kenji) was incredibly helpful in verifying imports beforehand.',

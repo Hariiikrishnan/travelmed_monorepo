@@ -1,21 +1,33 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   LayoutDashboard, ShoppingCart, Package, Layers, Pill, Users, Video, 
   Ticket, MessageSquare, BarChart3, Globe, Image as ImageIcon, Bell, 
   Settings, Lock, Clock, LogOut, ChevronLeft, ChevronRight, ChevronDown, Search, 
-  ShieldCheck, AlertTriangle, ArrowUpRight, ShieldAlert, Mail, Eye, EyeOff
+  AlertTriangle, Stethoscope
 } from 'lucide-react';
 
 // Modular view imports
 import DashboardView from '@/features/admin/components/DashboardView';
-import ProductsView from '@/features/admin/components/ProductsView';
+import ProductsView, { toProductView } from '@/features/admin/components/ProductsView';
 import MedicinesView from '@/features/admin/components/MedicinesView';
-import OrdersView from '@/features/admin/components/OrdersView';
+import OrdersView, { toOrderView } from '@/features/admin/components/OrdersView';
+import type { AdminStats } from '@/features/admin/components/DashboardView';
 import TeleconsultationView from '@/features/admin/components/TeleconsultationView';
 import AnalyticsView from '@/features/admin/components/AnalyticsView';
 import OtherViews from '@/features/admin/components/OtherViews';
+import LoginView from '@/features/admin/components/LoginView';
+import CategoriesView from '@/features/admin/components/CategoriesView';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+const timeAgo = (iso: string) => {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  return hrs < 24 ? `${hrs}h ago` : `${Math.round(hrs / 24)}d ago`;
+};
 
 export default function AdminDashboardPage() {
   const [token, setToken] = useState<string | null>(null);
@@ -36,6 +48,8 @@ export default function AdminDashboardPage() {
 
   // ── CENTRALIZED STATE DATABASE ──
   const [medicines, setMedicines] = useState<any[]>([]);
+  const [medicineCategories, setMedicineCategories] = useState<any[]>([]);
+  const [kitTypes, setKitTypes] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
@@ -45,6 +59,7 @@ export default function AdminDashboardPage() {
   const [coupons, setCoupons] = useState<any[]>([]);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [loadedAt, setLoadedAt] = useState(0);
 
   // Initialize token and load data
   useEffect(() => {
@@ -56,116 +71,79 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  const loadDashboardData = async (authToken: string) => {
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('travelmed_admin_token');
+    localStorage.removeItem('travelmed_admin_name');
+    setToken(null);
+  }, []);
+
+  const loadDashboardData = useCallback(async (authToken: string) => {
+    const auth = { headers: { Authorization: `Bearer ${authToken}` } };
+    const get = async (path: string, withAuth = true) => {
+      const res = await fetch(`${API_URL}${path}`, withAuth ? auth : undefined);
+      if (res.status === 401) throw new Error('UNAUTHORIZED');
+      if (!res.ok) return null;
+      const body = await res.json().catch(() => null);
+      return body?.data ?? null;
+    };
+
     try {
-      // 1. Fetch Medicines
-      const medRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/medicines`);
-      if (medRes.status === 401) return handleLogout();
-      const medBody = await medRes.json();
-      if (medRes.ok) setMedicines(medBody.data);
+      // Validate the session first so an expired token logs out cleanly.
+      const me = await get('/api/auth/me');
+      if (me?.user?.name) setAdminName(me.user.name);
 
-      // 2. Fetch Doctors
-      const docRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/doctors`);
-      const docBody = await docRes.json();
-      if (docRes.ok) setDoctors(docBody.data);
+      const [med, prod, ord, cons, docs, revs, coup, tick, logs, medCats, kTypes] = await Promise.all([
+        get('/api/medicines', false),
+        get('/api/products/admin/all'),
+        get('/api/orders'),
+        get('/api/consultations'),
+        get('/api/doctors/admin/all'),
+        get('/api/testimonials/admin/all'),
+        get('/api/coupons'),
+        get('/api/tickets'),
+        get('/api/logs'),
+        get('/api/medicine-categories/admin/all'),
+        get('/api/kit-types/admin/all'),
+      ]);
 
-      // 3. Fetch Testimonials (Reviews)
-      const revRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/testimonials`);
-      if (revRes.ok) {
-        const revBody = await revRes.json();
-        setReviews(revBody.data);
-      } else {
-        setReviews([]);
-      }
-
-      // 4. Fetch Orders
-      const ordRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/orders`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
-      if (ordRes.status === 401) return handleLogout();
-      const ordBody = await ordRes.json();
-      if (ordRes.ok) {
-        const formattedOrders = ordBody.data.map((o: any) => ({
-          id: o.orderId,
-          customer: o.shippingFullName,
-          email: o.shippingEmail || 'customer@travelmed.com',
-          phone: o.shippingPhone || 'N/A',
-          country: o.shippingCountry,
-          shippingAddress: `${o.shippingAddress}, ${o.shippingCity}, ${o.shippingCountry} - ${o.shippingZipCode}`,
-          payment: 'Razorpay',
-          shipping: 'Standard',
-          status: o.status,
-          tracking: o.trackingNumber,
-          amount: o.total,
-          medicines: o.items.map((item: any) => ({
-            name: item.name,
-            qty: item.quantity,
-            price: item.price
-          }))
-        }));
-        setOrders(formattedOrders);
-      }
-
-      // 5. Fetch Coupons
-      const coupRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/coupons`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
-      if (coupRes.ok) {
-        const coupBody = await coupRes.json();
-        setCoupons(coupBody.data);
-      } else {
-        setCoupons([]);
-      }
-
-      // 6. Fetch Tickets
-      const tickRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/tickets`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
-      if (tickRes.ok) {
-        const tickBody = await tickRes.json();
-        setTickets(tickBody.data);
-      } else {
-        setTickets([]);
-      }
-
-      setBookings([]); // Scrubbed Mock Bookings
-
-      // Fetches for Admins have been removed per request.
-
-      // 8. Fetch Logs
-      const logRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/logs`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
-      if (logRes.ok) {
-        const logBody = await logRes.json();
-        const formattedLogs = logBody.data.map((l: any) => ({
+      setLoadedAt(Date.now());
+      setMedicines(med ?? []);
+      setProducts((prod ?? []).map(toProductView));
+      setMedicineCategories(medCats ?? []);
+      setKitTypes(kTypes ?? []);
+      setOrders((ord ?? []).map(toOrderView));
+      setBookings(cons ?? []);
+      setDoctors(docs ?? []);
+      setReviews(revs ?? []);
+      setCoupons(coup ?? []);
+      setTickets(tick ?? []);
+      setActivityLogs(
+        (logs ?? []).map((l: any) => ({
           id: l.id,
           user: l.user,
           action: l.action,
           changes: l.changes,
-          timestamp: new Date(l.createdAt).toLocaleString()
-        }));
-        setActivityLogs(formattedLogs);
-      } else {
-        setActivityLogs([]);
-      }
+          timestamp: new Date(l.createdAt).toLocaleString(),
+        }))
+      );
     } catch (err) {
+      if (err instanceof Error && err.message === 'UNAUTHORIZED') return handleLogout();
       console.error('Failed to load database records:', err);
     }
-  };
+  }, [handleLogout]);
 
   useEffect(() => {
     if (token) {
       loadDashboardData(token);
     }
-  }, [token]);
+  }, [token, loadDashboardData]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
     setLoginError('');
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/login`, {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
@@ -185,19 +163,13 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('travelmed_admin_token');
-    localStorage.removeItem('travelmed_admin_name');
-    setToken(null);
-  };
-
   // ── HELPER FUNCTIONS ──
   const addActivityLog = async (action: string, changes: string) => {
     // DB Persistence
     try {
       const storedToken = token || localStorage.getItem('travelmed_admin_token');
       if (!storedToken) return;
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/logs`, {
+      await fetch(`${API_URL}/api/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${storedToken}` },
         body: JSON.stringify({ action, changes })
@@ -210,16 +182,54 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Synchronize stats based on datasets
-  const stats = {
-    revenueToday: orders.filter(o => o.status !== 'Cancelled' && o.status !== 'Refunded').reduce((sum, o) => sum + o.amount, 0),
-    ordersCount: orders.length,
-    pendingOrders: orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length,
-    medicinesSold: medicines.reduce((sum, m) => sum + (m.stock < 100 ? (100 - m.stock) : 0), 0),
-    activeConsultations: bookings.filter(b => b.status === 'Today').length,
-    visitorsToday: 2418,
-    conversionRate: 4.8,
-    avgOrderValue: Math.round(orders.reduce((sum, o) => sum + o.amount, 0) / orders.length) || 0
+  // ── REAL STATS (only paid orders count as sales) ──
+  const stats: AdminStats = useMemo(() => {
+    const paid = orders.filter((o) => o.paymentStatus === 'Paid');
+    const earning = paid.filter((o) => o.status !== 'Cancelled' && o.status !== 'Refunded');
+    const today = new Date().toDateString();
+    const paidToday = earning.filter((o) => o.createdAt && new Date(o.createdAt).toDateString() === today);
+    const revenueTotal = earning.reduce((sum, o) => sum + (Number(o.amount) || 0), 0);
+    return {
+      revenueToday: paidToday.reduce((sum, o) => sum + (Number(o.amount) || 0), 0),
+      revenueTotal,
+      paidOrdersToday: paidToday.length,
+      paidOrders: paid.length,
+      pendingOrders: paid.filter((o) => o.status === 'Pending' || o.status === 'Processing').length,
+      unpaidCheckouts: orders.length - paid.length,
+      kitsSold: earning.reduce((sum, o) => sum + o.medicines.reduce((q: number, m: any) => q + (Number(m.qty) || 0), 0), 0),
+      openConsultations: bookings.filter((b) => b.status === 'New' || b.status === 'Contacted').length,
+      openTickets: tickets.filter((t) => t.status === 'Open').length,
+      avgOrderValue: earning.length ? Math.round(revenueTotal / earning.length) : 0,
+    };
+  }, [orders, bookings, tickets]);
+
+  // ── REAL NOTIFICATIONS ──
+  const notifications = useMemo(() => {
+    const dayAgo = loadedAt - 24 * 60 * 60 * 1000;
+    const items: { key: string; title: string; meta: string; tab: string; tone: 'info' | 'alert'; order?: any }[] = [];
+    for (const o of orders) {
+      if (o.paymentStatus === 'Paid' && o.createdAt && new Date(o.createdAt).getTime() >= dayAgo) {
+        items.push({ key: `o-${o.id}`, title: `New paid order ${o.id} · ₹${Math.round(o.amount).toLocaleString('en-IN')}`, meta: `${o.customer} · ${timeAgo(o.createdAt)}`, tab: 'orders', tone: 'info', order: o });
+      }
+    }
+    for (const b of bookings) {
+      if (b.status === 'New') items.push({ key: `b-${b.id}`, title: `Consultation request for ${b.orderId}`, meta: `${b.symptom} · ${timeAgo(b.createdAt)}`, tab: 'teleconsultation', tone: 'info' });
+    }
+    for (const t of tickets) {
+      if (t.status === 'Open') items.push({ key: `t-${t.id}`, title: `Open ticket: ${t.subject}`, meta: `${t.user} · ${timeAgo(t.createdAt)}`, tab: 'support tickets', tone: 'info' });
+    }
+    for (const p of products) {
+      if (Number(p.stock) <= 10) items.push({ key: `p-${p.id}`, title: `Low stock: ${p.name} (${p.stock} left)`, meta: 'Product stock', tab: 'products', tone: 'alert' });
+    }
+    return items;
+  }, [orders, bookings, tickets, products, loadedAt]);
+
+  const initials = adminName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || 'A';
+
+  const openOrderById = (orderId: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    setSelectedOrder(order ?? null);
+    setActiveTab('orders');
   };
 
   const menuGroups = [
@@ -233,8 +243,9 @@ export default function AdminDashboardPage() {
     {
       title: 'CATALOG & STOCK',
       items: [
-        { id: 'products', label: 'Products', icon: Package },
-        { id: 'medicines', label: 'Medicines', icon: Pill }
+        { id: 'products', label: 'Kits', icon: Package },
+        { id: 'medicines', label: 'Medicines', icon: Pill },
+        { id: 'categories', label: 'Categories', icon: Layers }
       ]
     },
     {
@@ -272,91 +283,17 @@ export default function AdminDashboardPage() {
 
   if (!token) {
     return (
-      <div className="flex min-h-screen bg-slate-50 text-slate-800 font-sans justify-center items-center p-6 relative overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-100/50 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-50/50 rounded-full blur-3xl" />
-
-        <div className="max-w-md w-full relative z-10 space-y-6">
-          <div className="text-center space-y-2">
-            <span className="inline-block bg-blue-50 border border-blue-100 text-blue-600 font-bold py-1 px-3 rounded-full text-xs">
-              System Control Portal
-            </span>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-              TravelMed Administrator
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              Authorized personnel only. Audit logs are active.
-            </p>
-          </div>
-
-          <div className="p-8 bg-white border border-slate-200 shadow-xl rounded-3xl space-y-5">
-            <form onSubmit={handleLogin} className="space-y-5">
-              {loginError && (
-                <div className="p-3.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 flex items-start gap-2.5 font-semibold">
-                  <ShieldAlert className="h-4.5 w-4.5 shrink-0 mt-0.5" />
-                  <span>{loginError}</span>
-                </div>
-              )}
-
-              <div className="space-y-1.5 text-left">
-                <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">
-                  Administrator Username / Email
-                </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    required
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="admin@travelmed.com"
-                    className="w-full px-4 py-2.5 pl-9 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition font-medium text-slate-800"
-                  />
-                  <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-450" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5 text-left">
-                <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">
-                  Security Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full px-4 py-2.5 pl-9 pr-9 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition font-medium text-slate-800"
-                  />
-                  <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-450" />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3.5 text-slate-450 hover:text-slate-650 cursor-pointer focus:outline-none"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loginLoading}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-blue-500/10 transition-all flex justify-center items-center gap-2 cursor-pointer"
-              >
-                {loginLoading ? (
-                  'Verifying Authority...'
-                ) : (
-                  <>
-                    <ShieldCheck className="h-4 w-4" />
-                    <span>Authenticate Securely</span>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
+      <LoginView
+        email={loginEmail}
+        setEmail={setLoginEmail}
+        password={loginPassword}
+        setPassword={setLoginPassword}
+        showPassword={showPassword}
+        setShowPassword={setShowPassword}
+        loading={loginLoading}
+        error={loginError}
+        onSubmit={handleLogin}
+      />
     );
   }
 
@@ -474,12 +411,12 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0 text-left">
               <div className="h-9 w-9 rounded-xl bg-[#EEF6FF] border border-blue-100 flex items-center justify-center font-bold text-[#0B4F8C] shrink-0">
-                VS
+                {initials}
               </div>
               {!sidebarCollapsed && (
                 <div className="leading-tight min-w-0">
                   <p className="text-sm font-extrabold text-[#172B4D] truncate">{adminName}</p>
-                  <p className="text-[10px] font-bold text-slate-400 capitalize truncate">Super Admin Profile</p>
+                  <p className="text-[10px] font-bold text-slate-400 capitalize truncate">Administrator</p>
                 </div>
               )}
             </div>
@@ -514,8 +451,8 @@ export default function AdminDashboardPage() {
             
             {/* System Status Pill */}
             <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3.5 py-1.5 text-xs font-bold">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-              <span className="text-slate-500">Operations Shield Active</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="text-slate-500">Connected to database</span>
             </div>
 
             {/* Notification Bell */}
@@ -525,7 +462,11 @@ export default function AdminDashboardPage() {
                 className="p-2 hover:bg-slate-50 rounded-xl border border-slate-200 text-slate-455 hover:text-slate-850 cursor-pointer relative transition"
               >
                 <Bell className="h-4.5 w-4.5" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {notifications.length > 9 ? '9+' : notifications.length}
+                  </span>
+                )}
               </button>
 
               {/* Notification dropdown menu */}
@@ -534,18 +475,30 @@ export default function AdminDashboardPage() {
                   <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
                   <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 text-xs text-left">
                     <div className="px-4 py-3 bg-slate-50 border-b border-slate-150 flex justify-between items-center font-bold">
-                      <span className="text-slate-800">Recent Alert Feeds</span>
-                      <span className="text-[10px] text-[#0B4F8C] uppercase">Real-Time</span>
+                      <span className="text-slate-800">Notifications</span>
+                      <span className="text-[10px] text-[#0B4F8C] uppercase">Last 24h &amp; open items</span>
                     </div>
-                    <div className="divide-y divide-slate-100">
-                      <div className="p-4 hover:bg-slate-50/50 transition cursor-pointer" onClick={() => { setActiveTab('orders'); setNotificationsOpen(false); }}>
-                        <p className="font-bold text-slate-700">New COD Order #1089 received</p>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Order event · 3m ago</p>
-                      </div>
-                      <div className="p-4 hover:bg-slate-50/50 transition cursor-pointer" onClick={() => { setActiveTab('inventory'); setNotificationsOpen(false); }}>
-                        <p className="font-bold text-rose-600 flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Low Stock Alert: Ibuprofen</p>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Stock event · 1h ago</p>
-                      </div>
+                    <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                      {notifications.map((n) => (
+                        <button
+                          key={n.key}
+                          type="button"
+                          onClick={() => {
+                            if (n.order) setSelectedOrder(n.order);
+                            setActiveTab(n.tab);
+                            setNotificationsOpen(false);
+                          }}
+                          className="block w-full p-4 text-left hover:bg-slate-50/50 transition cursor-pointer"
+                        >
+                          <p className={`font-bold flex items-center gap-1 ${n.tone === 'alert' ? 'text-rose-600' : 'text-slate-700'}`}>
+                            {n.tone === 'alert' && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+                            {n.tab === 'teleconsultation' && <Stethoscope className="h-3.5 w-3.5 shrink-0 text-teal-600" />}
+                            {n.title}
+                          </p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">{n.meta}</p>
+                        </button>
+                      ))}
+                      {notifications.length === 0 && <p className="p-6 text-center font-semibold text-slate-400">You&apos;re all caught up.</p>}
                     </div>
                   </div>
                 </>
@@ -562,8 +515,9 @@ export default function AdminDashboardPage() {
           {activeTab === 'dashboard' && (
             <DashboardView 
               stats={stats} 
-              orders={orders} 
-              medicines={medicines}
+              orders={orders}
+              products={products}
+              bookings={bookings}
               reviews={reviews}
               tickets={tickets}
               setActiveTab={setActiveTab}
@@ -576,6 +530,9 @@ export default function AdminDashboardPage() {
               products={products} 
               setProducts={setProducts} 
               addActivityLog={addActivityLog}
+              medicines={medicines}
+              medicineCategories={medicineCategories}
+              kitTypes={kitTypes}
             />
           )}
 
@@ -584,6 +541,7 @@ export default function AdminDashboardPage() {
               medicines={medicines}
               setMedicines={setMedicines}
               addActivityLog={addActivityLog}
+              medicineCategories={medicineCategories}
             />
           )}
 
@@ -594,6 +552,7 @@ export default function AdminDashboardPage() {
               addActivityLog={addActivityLog}
               selectedOrder={selectedOrder}
               setSelectedOrder={setSelectedOrder}
+              bookings={bookings}
             />
           )}
 
@@ -604,16 +563,28 @@ export default function AdminDashboardPage() {
               doctors={doctors}
               setDoctors={setDoctors}
               addActivityLog={addActivityLog}
+              onOpenOrder={openOrderById}
+              onRefresh={() => token && loadDashboardData(token)}
+            />
+          )}
+
+          {activeTab === 'categories' && (
+            <CategoriesView
+              kitTypes={kitTypes}
+              setKitTypes={setKitTypes}
+              medicineCategories={medicineCategories}
+              setMedicineCategories={setMedicineCategories}
+              addActivityLog={addActivityLog}
             />
           )}
 
           {activeTab === 'analytics' && (
-            <AnalyticsView stats={stats} />
+            <AnalyticsView stats={stats} orders={orders} coupons={coupons} />
           )}
 
           {/* Aggregated settings & details views */}
           {[
-            'inventory', 'categories', 'customers', 'coupons', 
+            'inventory', 'customers', 'coupons', 
             'reviews', 'content', 'media library', 'notifications', 
             'support tickets', 'settings', 'admins', 'activity logs'
           ].includes(activeTab) && (

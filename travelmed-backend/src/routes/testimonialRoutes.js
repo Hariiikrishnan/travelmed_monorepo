@@ -4,7 +4,8 @@ import { protect, restrictTo } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
-router.get('/', testimonialController.getAll);
+router.get('/', testimonialController.getApproved);
+router.get('/admin/all', protect, restrictTo('admin'), testimonialController.getAll);
 
 // Authenticated User Route for submitting reviews
 router.post('/', protect, testimonialController.create);

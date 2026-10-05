@@ -26,7 +26,7 @@ export const InteractiveMap: React.FC = () => {
       riskFactor: 'High (Gastroenteric Pathogens & Hydration Loss)',
       medicines: ['Diarrhea Shield', 'Bismuth Relief', 'Hydration Recovery Salts'],
       clinicLatency: '60+ min travel',
-      teleconsultLatency: '2 min wait',
+      teleconsultLatency: '8-12 hrs response',
       description: 'Lush tropical stays and delicious street food markets present high enteric risks. Clean drinking water is scarce outside major hotels.'
     },
     {
@@ -36,7 +36,7 @@ export const InteractiveMap: React.FC = () => {
       riskFactor: 'Medium (Altitude Sickness & Sprains)',
       medicines: ['Travel-Ibuprofen', 'Hydration Recovery Salts', 'Hydrocortisone Cream'],
       clinicLatency: '90+ min mountain transport',
-      teleconsultLatency: '3 min wait',
+      teleconsultLatency: '8-12 hrs response',
       description: 'High-altitude trekking causes cerebral vasoconstriction (headaches) and vomiting. Local pharmacies are far below in valleys.'
     },
     {
@@ -46,8 +46,8 @@ export const InteractiveMap: React.FC = () => {
       riskFactor: 'Low (Joint Strain, Blisters & Cold Exposure)',
       medicines: ['Travel-Ibuprofen', 'Wound Care Wipes', 'Antiseptic Ointment'],
       clinicLatency: '45 min evacuation',
-      teleconsultLatency: '1 min wait',
-      description: 'Extreme heights and rugged terrain increase joint sprains and scrape risks. Instant doctor video calls support evacuation decisions.'
+      teleconsultLatency: '8-12 hrs response',
+      description: 'Extreme heights and rugged terrain increase joint sprains and scrape risks. Booked teleconsultations connect you with doctors within 8-12 hours.'
     },
     {
       id: 'hotspot-tokyo',
@@ -56,7 +56,7 @@ export const InteractiveMap: React.FC = () => {
       riskFactor: 'Low (Jetlag fatigue, Seasonal Pollen Allergies)',
       medicines: ['Allergy Shield (Cetirizine)', 'Sinus Decongestant'],
       clinicLatency: '20 min metro ride',
-      teleconsultLatency: '2 min wait',
+      teleconsultLatency: '8-12 hrs response',
       description: 'Vast pollen storms during spring and complex local pharmacy prescriptions make importing clean OTC allergy solutions crucial.'
     }
   ];

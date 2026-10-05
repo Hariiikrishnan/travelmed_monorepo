@@ -17,6 +17,9 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import couponRoutes from './routes/couponRoutes.js';
 import ticketRoutes from './routes/ticketRoutes.js';
 import logRoutes from './routes/logRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import consultationRoutes from './routes/consultationRoutes.js';
+import { kitTypeRoutes, medicineCategoryRoutes } from './routes/catalogRoutes.js';
 
 dotenv.config();
 
@@ -67,6 +70,10 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/consultations', consultationRoutes);
+app.use('/api/kit-types', kitTypeRoutes);
+app.use('/api/medicine-categories', medicineCategoryRoutes);
 
 // Handle undefined routes
 app.all('*', (req, res, next) => {

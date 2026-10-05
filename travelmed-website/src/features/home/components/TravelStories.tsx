@@ -51,7 +51,7 @@ export const TravelStories: React.FC = () => {
               See how travelers recovered quickly from injuries, local ailments, and stomach issues.
             </p>
           </div>
-          <Link href="/travel-blog" className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline">
+          <Link href="/blog" className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline">
             <span>Read all travel logs</span>
             <ArrowUpRight className="h-4 w-4" />
           </Link>

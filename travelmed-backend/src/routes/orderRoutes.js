@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import * as orderController from '../controllers/orderController.js';
-import { protect, restrictTo, optionalProtect } from '../middleware/authMiddleware.js';
+import { protect, restrictTo } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
-router.post('/', optionalProtect, orderController.createOrder);
+// Public
+router.post('/quote', orderController.quote);
 router.get('/:orderId', orderController.getOrderById);
 
-// Protected Admin Routes
+// Admin. Orders are created only through the payment flow (/api/payments).
 router.get('/', protect, restrictTo('admin'), orderController.getAllOrders);
 router.patch('/:orderId/status', protect, restrictTo('admin'), orderController.updateOrderStatus);
 

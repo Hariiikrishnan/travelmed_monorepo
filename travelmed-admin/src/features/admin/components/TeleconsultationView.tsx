@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
-import { 
-  Video, User, FileText, Plus, Edit2, Trash2, Clock, CheckCircle2, Save, X, Award
+import {
+  Video, Plus, Edit2, Save, X, Award, MessageCircle, Stethoscope, MapPin, Link2, Loader2, StickyNote,
 } from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const authHeaders = (): Record<string, string> => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('travelmed_admin_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+};
+
+export const BOOKING_STATUSES = ['New', 'Contacted', 'Completed', 'Cancelled'] as const;
 
 interface TeleconsultationViewProps {
   bookings: any[];
@@ -9,7 +17,23 @@ interface TeleconsultationViewProps {
   doctors: any[];
   setDoctors: React.Dispatch<React.SetStateAction<any[]>>;
   addActivityLog: (action: string, changes: string) => void;
+  /** Opens the order in the Orders view */
+  onOpenOrder?: (orderId: string) => void;
+  /** Reloads bookings/orders so per-order usage counts stay accurate */
+  onRefresh?: () => void;
 }
+
+const statusStyle: Record<string, string> = {
+  New: 'bg-blue-50 text-[#0B4F8C] border-blue-200',
+  Contacted: 'bg-amber-50 text-amber-700 border-amber-200',
+  Completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
+};
+
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+const waLink = (num: string) => `https://wa.me/${num.replace(/[^\d]/g, '')}`;
 
 export default function TeleconsultationView({
   bookings,
@@ -17,287 +41,360 @@ export default function TeleconsultationView({
   doctors,
   setDoctors,
   addActivityLog,
+  onOpenOrder,
+  onRefresh,
 }: TeleconsultationViewProps) {
-  
   const [teleTab, setTeleTab] = useState<'bookings' | 'doctors'>('bookings');
-  const [bookingFilter, setBookingFilter] = useState<'all' | 'Today' | 'Upcoming' | 'Completed' | 'Cancelled'>('all');
-  
-  // Prescription editing
-  const [writingPrescriptionId, setWritingPrescriptionId] = useState<string | null>(null);
-  const [prescriptionText, setPrescriptionText] = useState('');
+  const [bookingFilter, setBookingFilter] = useState<'all' | (typeof BOOKING_STATUSES)[number]>('all');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState('');
+  const [draft, setDraft] = useState<Record<string, { meetingLink: string; notes: string }>>({});
 
-  // Doctor editing / creation modal
+  // Doctor form
   const [isEditingDoctor, setIsEditingDoctor] = useState(false);
   const [editingDoctorId, setEditingDoctorId] = useState<string | null>(null);
+  const [doctorError, setDoctorError] = useState('');
+  const [savingDoctor, setSavingDoctor] = useState(false);
   const [docName, setDocName] = useState('');
   const [docQual, setDocQual] = useState('');
   const [docSpec, setDocSpec] = useState('');
-  const [docFees, setDocFees] = useState(500);
+  const [docExp, setDocExp] = useState('');
+  const [docBio, setDocBio] = useState('');
+  const [docFees, setDocFees] = useState<number | ''>('');
   const [docLangs, setDocLangs] = useState('English, Hindi');
-  const [docDays, setDocDays] = useState('Mon, Tue, Wed, Thu, Fri');
-  const [docSlots, setDocSlots] = useState('09:00 AM - 01:00 PM');
+  const [docDays, setDocDays] = useState('');
+  const [docSlots, setDocSlots] = useState('');
   const [docStatus, setDocStatus] = useState<'Active' | 'Inactive'>('Active');
   const [docPhoto, setDocPhoto] = useState('');
 
-  const filteredBookings = bookings.filter(b => {
-    if (bookingFilter === 'all') return true;
-    return b.status === bookingFilter;
-  });
+  const filteredBookings = bookings.filter((b) => bookingFilter === 'all' || b.status === bookingFilter);
+  const countBy = (status: string) => bookings.filter((b) => b.status === status).length;
 
-  const handleToggleDoctorStatus = (id: string, current: string) => {
-    const next = current === 'Active' ? 'Inactive' : 'Active';
-    setDoctors(prev => prev.map(d => d.id === id ? { ...d, status: next } : d));
-    addActivityLog('Doctor Status Toggled', `Changed Doctor ID ${id} status to ${next}`);
+  // ── Bookings ──
+  const updateBooking = async (id: string, data: Record<string, unknown>, logText: string) => {
+    setBusyId(id);
+    setBookingError('');
+    try {
+      const res = await fetch(`${API_URL}/api/consultations/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Failed to update booking.');
+      setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, ...body.data } : b)));
+      addActivityLog('Consultation Updated', logText);
+      // Status changes affect per-order usage (a cancelled booking frees a slot)
+      if ('status' in data) onRefresh?.();
+    } catch (err) {
+      setBookingError(err instanceof Error ? err.message : 'Failed to update booking.');
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const handleOpenPrescriptionModal = (booking: any) => {
-    setWritingPrescriptionId(booking.id);
-    setPrescriptionText(booking.prescription || 'Rx:\n1. Paracetamol 500mg - 1 tab thrice daily for 3 days.\n2. ORS sachet - 1 in 1L water, sip throughout day.');
-  };
+  const draftFor = (b: any) => draft[b.id] ?? { meetingLink: b.meetingLink ?? '', notes: b.notes ?? '' };
 
-  const handleSavePrescription = () => {
-    if (!writingPrescriptionId) return;
-    setBookings(prev => prev.map(b => b.id === writingPrescriptionId ? { 
-      ...b, 
-      prescription: prescriptionText,
-      status: 'Completed'
-    } : b));
-    addActivityLog('Prescription Issued', `Issued digital prescription for booking #${writingPrescriptionId}`);
-    setWritingPrescriptionId(null);
-    alert('Prescription submitted successfully. Patient notified.');
-  };
-
-  const handleGenerateMeetingLink = (id: string) => {
-    const link = `https://meet.jit.si/travelmed-${Math.floor(10000 + Math.random() * 90000)}`;
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, meetingLink: link } : b));
-    addActivityLog('Meeting Link Generated', `Generated virtual consult link for booking #${id}`);
+  // ── Doctors ──
+  const resetDoctorForm = () => {
+    setDocName('');
+    setDocQual('');
+    setDocSpec('');
+    setDocExp('');
+    setDocBio('');
+    setDocFees('');
+    setDocLangs('English, Hindi');
+    setDocDays('');
+    setDocSlots('');
+    setDocStatus('Active');
+    setDocPhoto('');
+    setDoctorError('');
   };
 
   const handleCreateDoctorClick = () => {
     setEditingDoctorId(null);
-    setDocName('');
-    setDocQual('MBBS, MD (General Medicine)');
-    setDocSpec('General Physician');
-    setDocFees(1200);
-    setDocLangs('English, Hindi, Spanish');
-    setDocDays('Mon, Tue, Wed, Thu, Fri');
-    setDocSlots('02:00 PM - 06:00 PM');
-    setDocStatus('Active');
-    setDocPhoto('https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=150&h=150');
+    resetDoctorForm();
     setIsEditingDoctor(true);
   };
 
   const handleEditDoctor = (d: any) => {
     setEditingDoctorId(d.id);
-    setDocName(d.name);
-    setDocQual(d.qualification);
-    setDocSpec(d.speciality);
-    setDocFees(d.fees);
-    setDocLangs(d.languages.join(', '));
-    setDocDays(d.days.join(', '));
-    setDocSlots(d.slots.join(', '));
-    setDocStatus(d.status);
-    setDocPhoto(d.photo);
+    setDocName(d.name ?? '');
+    setDocQual(d.qualification ?? '');
+    setDocSpec(d.specialty ?? '');
+    setDocExp(d.experience ?? '');
+    setDocBio(d.bio ?? '');
+    setDocFees(d.fees ?? '');
+    setDocLangs((d.languages ?? []).join(', '));
+    setDocDays((d.days ?? []).join(', '));
+    setDocSlots((d.slots ?? []).join(', '));
+    setDocStatus(d.status === 'Inactive' ? 'Inactive' : 'Active');
+    setDocPhoto(d.image ?? '');
+    setDoctorError('');
     setIsEditingDoctor(true);
   };
 
-  const handleSaveDoctor = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!docName.trim()) return;
+  const doctorPayload = (overrides: Record<string, unknown> = {}) => ({
+    name: docName.trim(),
+    specialty: docSpec.trim(),
+    qualification: docQual.trim(),
+    experience: docExp.trim(),
+    bio: docBio.trim(),
+    image: docPhoto.trim(),
+    fees: docFees === '' ? null : Number(docFees),
+    languages: docLangs.split(',').map((l) => l.trim()).filter(Boolean),
+    days: docDays.split(',').map((d) => d.trim()).filter(Boolean),
+    slots: docSlots.split(',').map((s) => s.trim()).filter(Boolean),
+    status: docStatus,
+    ...overrides,
+  });
 
-    const langsArr = docLangs.split(',').map(l => l.trim()).filter(Boolean);
-    const daysArr = docDays.split(',').map(d => d.trim()).filter(Boolean);
-    const slotsArr = docSlots.split(',').map(s => s.trim()).filter(Boolean);
-
-    if (editingDoctorId) {
-      setDoctors(prev => prev.map(d => d.id === editingDoctorId ? {
-        ...d,
-        name: docName, qualification: docQual, speciality: docSpec, fees: docFees,
-        languages: langsArr, days: daysArr, slots: slotsArr, status: docStatus, photo: docPhoto
-      } : d));
-      addActivityLog('Doctor Updated', `Updated profile of Dr. ${docName}`);
-    } else {
-      const newDoc = {
-        id: 'doc-' + Math.floor(100 + Math.random() * 900),
-        name: docName, qualification: docQual, speciality: docSpec, fees: docFees,
-        languages: langsArr, days: daysArr, slots: slotsArr, status: docStatus,
-        photo: docPhoto || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=150&h=150'
-      };
-      setDoctors(prev => [...prev, newDoc]);
-      addActivityLog('Doctor Profile Created', `Registered profile for Dr. ${docName}`);
-    }
-
-    setIsEditingDoctor(false);
-    setEditingDoctorId(null);
+  const saveDoctor = async (id: string | null, payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_URL}/api/doctors${id ? `/${id}` : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.message || 'Failed to save doctor.');
+    return body.data;
   };
+
+  const handleSaveDoctor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docName.trim() || !docSpec.trim()) {
+      setDoctorError('Name and speciality are required.');
+      return;
+    }
+    setSavingDoctor(true);
+    setDoctorError('');
+    try {
+      const saved = await saveDoctor(editingDoctorId, doctorPayload());
+      setDoctors((prev) => (editingDoctorId ? prev.map((d) => (d.id === editingDoctorId ? saved : d)) : [...prev, saved]));
+      addActivityLog(editingDoctorId ? 'Doctor Updated' : 'Doctor Profile Created', `Dr. ${saved.name}`);
+      setIsEditingDoctor(false);
+      setEditingDoctorId(null);
+    } catch (err) {
+      setDoctorError(err instanceof Error ? err.message : 'Failed to save doctor.');
+    } finally {
+      setSavingDoctor(false);
+    }
+  };
+
+  const handleToggleDoctorStatus = async (d: any) => {
+    const next = d.status === 'Inactive' ? 'Active' : 'Inactive';
+    try {
+      const saved = await saveDoctor(d.id, {
+        name: d.name,
+        specialty: d.specialty,
+        qualification: d.qualification ?? '',
+        experience: d.experience ?? '',
+        bio: d.bio ?? '',
+        image: d.image ?? '',
+        fees: d.fees ?? null,
+        languages: d.languages ?? [],
+        days: d.days ?? [],
+        slots: d.slots ?? [],
+        status: next,
+      });
+      setDoctors((prev) => prev.map((x) => (x.id === d.id ? saved : x)));
+      addActivityLog('Doctor Status Toggled', `Dr. ${d.name} → ${next}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update doctor.');
+    }
+  };
+
+  const inputCls = 'w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]';
 
   return (
     <div className="space-y-6 text-slate-650">
-      
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
         <div className="text-left">
           <h2 className="text-xl font-bold text-[#172B4D] uppercase tracking-wider flex items-center gap-2">
-            <Video className="h-5 w-5 text-teal-650" /> Virtual Telehealth Hub
+            <Video className="h-5 w-5 text-teal-650" /> Telehealth Desk
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Moderate doctor-patient consultations, manage slots, and view electronic prescriptions.</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Free teleconsultation requests from customers (max 2 per order) and the doctor panel.
+          </p>
         </div>
-        
-        {/* Toggle buttons */}
         <div className="flex gap-2 font-bold text-xs">
-          <button 
-            onClick={() => setTeleTab('bookings')}
-            className={`px-4 py-2 rounded-xl transition cursor-pointer ${
-              teleTab === 'bookings' 
-                ? 'bg-[#0B4F8C] text-white font-black' 
-                : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Consultation Bookings
-          </button>
-          <button 
-            onClick={() => setTeleTab('doctors')}
-            className={`px-4 py-2 rounded-xl transition cursor-pointer ${
-              teleTab === 'doctors' 
-                ? 'bg-[#0B4F8C] text-white font-black' 
-                : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Doctor Profiles
-          </button>
+          {(['bookings', 'doctors'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTeleTab(t)}
+              className={`px-4 py-2 rounded-xl transition cursor-pointer ${
+                teleTab === t ? 'bg-[#0B4F8C] text-white font-black' : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              {t === 'bookings' ? `Consultation Requests (${bookings.length})` : `Doctor Profiles (${doctors.length})`}
+            </button>
+          ))}
         </div>
       </div>
 
       {teleTab === 'bookings' ? (
-        
-        /* ── BOOKINGS MANAGER VIEW ── */
         <div className="space-y-4">
-          
-          {/* Booking filter tab row */}
-          <div className="flex flex-wrap gap-2 justify-start border-b border-slate-100 pb-2 font-bold">
-            {[
-              { id: 'all', label: 'All Appointments' },
-              { id: 'Today', label: 'Today\'s Consultations' },
-              { id: 'Upcoming', label: 'Upcoming Slots' },
-              { id: 'Completed', label: 'Completed Appointments' },
-              { id: 'Cancelled', label: 'Cancelled Slots' }
-            ].map(filter => (
+          <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-2 font-bold">
+            {(['all', ...BOOKING_STATUSES] as const).map((f) => (
               <button
-                key={filter.id}
-                onClick={() => setBookingFilter(filter.id as any)}
+                key={f}
+                onClick={() => setBookingFilter(f)}
                 className={`px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
-                  bookingFilter === filter.id 
-                    ? 'bg-blue-50 text-[#0B4F8C] border border-blue-100' 
-                    : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900'
+                  bookingFilter === f ? 'bg-blue-50 text-[#0B4F8C] border border-blue-100' : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900'
                 }`}
               >
-                {filter.label}
+                {f === 'all' ? `All (${bookings.length})` : `${f} (${countBy(f)})`}
               </button>
             ))}
           </div>
 
-          {/* Bookings Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredBookings.map(book => (
-              <div key={book.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-350 hover:shadow-sm transition space-y-4">
-                
-                <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-                  <div className="text-left space-y-0.5">
-                    <span className="text-[9px] font-mono text-[#0B4F8C] font-bold">Slot ID: #{book.id}</span>
-                    <h4 className="font-extrabold text-sm text-[#172B4D] flex items-center gap-1.5">
-                      Patient: {book.patient}
-                    </h4>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-wider ${
-                    book.status === 'Completed' 
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                      : book.status === 'Today'
-                      ? 'bg-blue-50 text-[#0B4F8C] border border-blue-100 animate-pulse'
-                      : book.status === 'Upcoming'
-                      ? 'bg-sky-50 text-sky-600 border-sky-200'
-                      : 'bg-slate-100 text-slate-500 border-slate-200'
-                  }`}>
-                    {book.status}
-                  </span>
-                </div>
+          {bookingError && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-600">{bookingError}</div>
+          )}
 
-                <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-left">
-                  <div>
-                    <span className="text-slate-400 block text-[9px] uppercase tracking-wider">CONSULTING DOCTOR</span>
-                    <span className="text-slate-700 font-bold">Dr. {book.doctor}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[9px] uppercase tracking-wider">DATE & SLOT TIME</span>
-                    <span className="text-slate-700 font-bold">{book.date} | {book.time}</span>
-                  </div>
-                </div>
-
-                <div className="text-left bg-slate-50 rounded-xl p-3 border border-slate-150 space-y-1">
-                  <span className="font-bold text-[9px] text-slate-450 uppercase">Symptoms Reported</span>
-                  <p className="text-slate-750 font-bold italic">"{book.symptoms}"</p>
-                </div>
-
-                {book.prescription && (
-                  <div className="text-left bg-teal-50 border border-teal-100 rounded-xl p-3 space-y-1">
-                    <span className="font-bold text-[9px] text-teal-650 uppercase flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Prescription Issued</span>
-                    <p className="text-slate-750 font-bold font-mono whitespace-pre-line leading-relaxed">{book.prescription}</p>
-                  </div>
-                )}
-
-                {/* Booking actions */}
-                <div className="bg-slate-50/50 border border-slate-150 rounded-xl px-4 py-2.5 flex flex-wrap gap-2 items-center justify-between font-bold">
-                  <div className="flex gap-2">
-                    {book.meetingLink ? (
-                      <a 
-                        href={book.meetingLink} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0B4F8C] hover:bg-[#083B69] text-white rounded-lg text-[10px] font-bold transition"
-                      >
-                        Start Call
-                      </a>
-                    ) : (
-                      book.status !== 'Completed' && book.status !== 'Cancelled' && (
-                        <button 
-                          onClick={() => handleGenerateMeetingLink(book.id)}
-                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-[10px] text-indigo-650 font-bold rounded-lg transition cursor-pointer"
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {filteredBookings.map((b) => {
+              const d = draftFor(b);
+              const busy = busyId === b.id;
+              return (
+                <div key={b.id} className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 text-left hover:shadow-sm transition">
+                  {/* Header */}
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                            b.sequence ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-slate-100 text-slate-500 border-slate-200'
+                          }`}
+                          title="Which of the order's free consultations this is"
                         >
-                          Generate Meet Link
+                          {b.sequence ? `Consult ${b.sequence}/${b.consultationsAllowed ?? 0}` : 'Cancelled'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenOrder?.(b.orderId)}
+                          className="font-mono text-xs font-bold text-[#0B4F8C] hover:underline cursor-pointer"
+                        >
+                          {b.orderId}
                         </button>
-                      )
+                      </div>
+                      <p className="text-sm font-extrabold text-[#172B4D]">{b.order?.shippingFullName ?? 'Customer'}</p>
+                      <p className="text-[11px] font-semibold text-slate-400">
+                        Requested {fmtDate(b.createdAt)} · {b.consultationsRemaining ?? 0} of {b.consultationsAllowed ?? 0} remaining on this order
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${statusStyle[b.status] ?? statusStyle.New}`}>
+                      {b.status}
+                    </span>
+                  </div>
+
+                  {/* Details */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-semibold">
+                    <div className="flex items-start gap-2">
+                      <Stethoscope className="h-4 w-4 shrink-0 text-teal-600" />
+                      <span><span className="block text-[9px] uppercase tracking-wider text-slate-400">Symptoms</span>{b.symptom}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 shrink-0 text-teal-600" />
+                      <span><span className="block text-[9px] uppercase tracking-wider text-slate-400">Travelling in</span>{b.destination}</span>
+                    </div>
+                    <a href={waLink(b.whatsapp)} target="_blank" rel="noreferrer" className="flex items-start gap-2 text-emerald-700 hover:underline">
+                      <MessageCircle className="h-4 w-4 shrink-0" />
+                      <span><span className="block text-[9px] uppercase tracking-wider text-slate-400">WhatsApp</span>{b.whatsapp}</span>
+                    </a>
+                    {b.order?.shippingEmail && (
+                      <a href={`mailto:${b.order.shippingEmail}`} className="flex items-start gap-2 text-[#0B4F8C] hover:underline truncate">
+                        <span><span className="block text-[9px] uppercase tracking-wider text-slate-400">Email</span>{b.order.shippingEmail}</span>
+                      </a>
                     )}
                   </div>
 
-                  {book.status !== 'Cancelled' && (
-                    <button 
-                      onClick={() => handleOpenPrescriptionModal(book)}
-                      className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-55 text-[10px] text-teal-650 font-bold rounded-lg transition cursor-pointer"
-                    >
-                      {book.prescription ? 'Edit Rx' : 'Write Prescription'}
-                    </button>
-                  )}
-                </div>
+                  {/* Controls */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <label className="space-y-1">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Status</span>
+                      <select
+                        value={b.status}
+                        disabled={busy}
+                        onChange={(e) => updateBooking(b.id, { status: e.target.value }, `${b.orderId}: status → ${e.target.value}`)}
+                        className={inputCls + ' py-2 font-semibold'}
+                      >
+                        {BOOKING_STATUSES.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Assigned doctor</span>
+                      <select
+                        value={b.doctorId ?? ''}
+                        disabled={busy}
+                        onChange={(e) => {
+                          const doc = doctors.find((x) => x.id === e.target.value);
+                          updateBooking(b.id, { doctorId: e.target.value || null }, `${b.orderId}: doctor → ${doc ? `Dr. ${doc.name}` : 'unassigned'}`);
+                        }}
+                        className={inputCls + ' py-2 font-semibold'}
+                      >
+                        <option value="">Unassigned</option>
+                        {doctors.filter((x) => x.status !== 'Inactive' || x.id === b.doctorId).map((doc) => (
+                          <option key={doc.id} value={doc.id}>Dr. {doc.name} — {doc.specialty}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1 sm:col-span-2">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1"><Link2 className="h-3 w-3" /> Video call link</span>
+                      <input
+                        value={d.meetingLink}
+                        onChange={(e) => setDraft((p) => ({ ...p, [b.id]: { ...d, meetingLink: e.target.value } }))}
+                        placeholder="https://meet.google.com/…"
+                        className={inputCls + ' py-2'}
+                      />
+                    </label>
+                    <label className="space-y-1 sm:col-span-2">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1"><StickyNote className="h-3 w-3" /> Internal notes</span>
+                      <textarea
+                        value={d.notes}
+                        rows={2}
+                        onChange={(e) => setDraft((p) => ({ ...p, [b.id]: { ...d, notes: e.target.value } }))}
+                        placeholder="Call summary, advice given…"
+                        className={inputCls + ' py-2'}
+                      />
+                    </label>
+                  </div>
 
-              </div>
-            ))}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                    {b.meetingLink ? (
+                      <a href={b.meetingLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B4F8C] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#083B69]">
+                        <Video className="h-3.5 w-3.5" /> Start call
+                      </a>
+                    ) : <span />}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        updateBooking(
+                          b.id,
+                          { meetingLink: d.meetingLink.trim() || null, notes: d.notes.trim() || null },
+                          `${b.orderId}: link/notes updated`
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:border-[#0B4F8C] hover:text-[#0B4F8C] cursor-pointer disabled:opacity-60"
+                    >
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save link &amp; notes
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
             {filteredBookings.length === 0 && (
-              <div className="col-span-1 md:col-span-2 py-12 text-center text-slate-400 font-medium">
-                No consultations matching selected filter.
+              <div className="col-span-full py-12 text-center text-sm text-slate-400 font-medium">
+                No consultation requests {bookingFilter === 'all' ? 'yet' : `with status “${bookingFilter}”`}.
               </div>
             )}
           </div>
-
         </div>
-
       ) : (
-        
-        /* ── DOCTORS DIRECTORY VIEW ── */
         <div className="space-y-6">
-          
-          {/* Header add doctor button */}
           {!isEditingDoctor && (
             <div className="flex justify-end">
-              <button 
+              <button
                 onClick={handleCreateDoctorClick}
                 className="flex items-center gap-1.5 px-4 py-2 bg-[#0B4F8C] hover:bg-[#083B69] text-white rounded-xl font-bold text-xs shadow-sm transition cursor-pointer"
               >
@@ -307,277 +404,131 @@ export default function TeleconsultationView({
           )}
 
           {!isEditingDoctor ? (
-            
-            /* DOCTORS GRID */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {doctors.map(doc => (
-                <div key={doc.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-350 hover:shadow-sm transition">
-                  
-                  {/* Photo & Basic details */}
+              {doctors.map((doc) => (
+                <div key={doc.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between hover:shadow-sm transition text-left">
                   <div className="space-y-4">
                     <div className="flex gap-4 items-start">
                       <div className="h-16 w-16 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center shrink-0">
-                        <img src={doc.photo} alt={doc.name} className="w-full h-full object-cover" />
+                        {doc.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={doc.image} alt={doc.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Stethoscope className="h-6 w-6 text-slate-300" />
+                        )}
                       </div>
-                      <div className="text-left space-y-1 min-w-0">
-                        <h4 className="font-extrabold text-sm text-[#172B4D] truncate leading-tight flex items-center gap-1.5">
+                      <div className="min-w-0 space-y-1">
+                        <h4 className="font-extrabold text-sm text-[#172B4D] flex items-center gap-1 truncate">
                           Dr. {doc.name} <Award className="h-3.5 w-3.5 text-teal-650 shrink-0" />
                         </h4>
-                        <p className="text-[9px] text-[#14B8A6] font-bold truncate uppercase">{doc.speciality}</p>
-                        <p className="text-[9px] text-slate-450 font-bold truncate leading-none">{doc.qualification}</p>
+                        <p className="text-[10px] text-[#14B8A6] font-bold truncate uppercase">{doc.specialty}</p>
+                        <p className="text-[10px] text-slate-450 font-bold truncate">{doc.qualification}</p>
                       </div>
                     </div>
-
-                    {/* Meta information */}
-                    <div className="border-t border-slate-100 pt-3 space-y-2 text-xs text-left font-semibold">
-                      <div className="flex justify-between">
-                        <span className="text-slate-455 text-[9px] uppercase tracking-wider">CONSULTATION FEES</span>
-                        <span className="text-slate-750 font-bold font-mono">₹{(doc.fees || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-455 text-[9px] uppercase tracking-wider">LANGUAGES</span>
-                        <span className="text-slate-700 font-bold truncate max-w-[150px]">{(doc.languages || []).join(', ')}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-455 text-[9px] uppercase tracking-wider">AVAILABLE DAYS</span>
-                        <span className="text-slate-700 font-bold truncate max-w-[150px]">{(doc.days || []).join(', ')}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-455 text-[9px] uppercase tracking-wider">TIME SLOTS</span>
-                        <span className="text-slate-700 font-bold truncate max-w-[150px]">{(doc.slots || []).join(', ')}</span>
-                      </div>
+                    <div className="space-y-1.5 text-xs font-semibold">
+                      {doc.fees != null && (
+                        <p className="flex justify-between"><span className="text-slate-400">Fees</span><span className="font-mono font-bold text-slate-700">₹{Number(doc.fees).toLocaleString('en-IN')}</span></p>
+                      )}
+                      <p className="flex justify-between gap-2"><span className="text-slate-400">Languages</span><span className="truncate font-bold text-slate-700">{(doc.languages ?? []).join(', ') || '—'}</span></p>
+                      <p className="flex justify-between gap-2"><span className="text-slate-400">Days</span><span className="truncate font-bold text-slate-700">{(doc.days ?? []).join(', ') || '—'}</span></p>
+                      <p className="flex justify-between gap-2"><span className="text-slate-400">Slots</span><span className="truncate font-bold text-slate-700">{(doc.slots ?? []).join(', ') || '—'}</span></p>
                     </div>
                   </div>
-
-                  {/* Doctor state toggles */}
-                  <div className="bg-slate-50/50 border border-slate-150 rounded-xl px-4 py-2.5 mt-5 flex justify-between items-center font-bold">
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleToggleDoctorStatus(doc.id, doc.status)}
-                        className={`px-3 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wider transition ${
-                          doc.status === 'Active' 
-                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
-                            : 'bg-rose-50 text-rose-600 border border-rose-200'
-                        }`}
-                      >
-                        {doc.status}
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleEditDoctor(doc)}
-                        className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-slate-900 rounded-lg transition"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                    <button
+                      onClick={() => handleToggleDoctorStatus(doc)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold border cursor-pointer ${
+                        doc.status === 'Inactive' ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                      }`}
+                      title="Inactive doctors are hidden from the website"
+                    >
+                      {doc.status === 'Inactive' ? 'Inactive' : 'Active'}
+                    </button>
+                    <button onClick={() => handleEditDoctor(doc)} className="flex items-center gap-1 text-xs font-bold text-[#0B4F8C] hover:underline cursor-pointer">
+                      <Edit2 className="h-3.5 w-3.5" /> Edit
+                    </button>
                   </div>
-
                 </div>
               ))}
+              {doctors.length === 0 && <div className="col-span-full py-12 text-center text-sm text-slate-400">No doctors yet.</div>}
             </div>
-
           ) : (
-            
-            /* DOCTOR PROFILE EDIT FORM */
-            <form onSubmit={handleSaveDoctor} className="bg-white border border-slate-200 rounded-2xl p-6 text-left space-y-6 max-w-xl mx-auto">
-              
+            <form onSubmit={handleSaveDoctor} className="bg-white border border-slate-200 rounded-2xl p-6 text-left space-y-6 max-w-2xl mx-auto">
               <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider flex items-center gap-1.5">
-                  Dr. {editingDoctorId ? 'Edit Doctor Profile' : 'Register New Specialist'}
+                <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider">
+                  {editingDoctorId ? 'Edit Doctor Profile' : 'Register New Doctor'}
                 </h3>
-                <button 
-                  type="button" 
-                  onClick={() => setIsEditingDoctor(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full cursor-pointer"
-                >
+                <button type="button" onClick={() => setIsEditingDoctor(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full cursor-pointer" aria-label="Close">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
+              {doctorError && (
+                <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-600">{doctorError}</div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
-                
-                {/* Name */}
-                <div className="space-y-1.5 col-span-1 sm:col-span-2">
-                  <label className="text-slate-550 font-bold uppercase tracking-wider">Doctor Full Name (Without 'Dr.')</label>
-                  <input 
-                    type="text" 
-                    value={docName}
-                    onChange={e => setDocName(e.target.value)}
-                    placeholder="e.g. Sarah Carter"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                    required
-                  />
-                </div>
-
-                {/* Qualification */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 font-bold uppercase tracking-wider">Qualification details</label>
-                  <input 
-                    type="text" 
-                    value={docQual}
-                    onChange={e => setDocQual(e.target.value)}
-                    placeholder="e.g. MD, FACP"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-
-                {/* Speciality */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 font-bold uppercase tracking-wider">Medical Speciality</label>
-                  <input 
-                    type="text" 
-                    value={docSpec}
-                    onChange={e => setDocSpec(e.target.value)}
-                    placeholder="e.g. Travel Medicine"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-
-                {/* Consultation Fees */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 font-bold uppercase tracking-wider">Consultation Fees (INR)</label>
-                  <input 
-                    type="number" 
-                    value={docFees || ''}
-                    onChange={e => setDocFees(e.target.value ? parseInt(e.target.value) : ('' as any))}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-805 focus:outline-none focus:border-[#0B4F8C] font-mono"
-                  />
-                </div>
-
-                {/* Photo Link */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-550 font-bold uppercase tracking-wider">Photo URL</label>
-                  <input 
-                    type="text" 
-                    value={docPhoto}
-                    onChange={e => setDocPhoto(e.target.value)}
-                    placeholder="Doctor profile image link..."
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-
-                {/* Languages */}
-                <div className="space-y-1.5 col-span-1 sm:col-span-2">
-                  <label className="text-slate-550 font-bold uppercase tracking-wider">Languages (Comma Separated)</label>
-                  <input 
-                    type="text" 
-                    value={docLangs}
-                    onChange={e => setDocLangs(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-
-                {/* Available Days */}
-                <div className="space-y-1.5 col-span-1 sm:col-span-2">
-                  <label className="text-slate-550 font-bold uppercase tracking-wider">Available Days (Comma Separated)</label>
-                  <input 
-                    type="text" 
-                    value={docDays}
-                    onChange={e => setDocDays(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-
-                {/* Available Slots */}
-                <div className="space-y-1.5 col-span-1 sm:col-span-2">
-                  <label className="text-slate-550 font-bold uppercase tracking-wider">Available Time Slots (Comma Separated)</label>
-                  <input 
-                    type="text" 
-                    value={docSlots}
-                    onChange={e => setDocSlots(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:outline-none focus:border-[#0B4F8C]"
-                  />
-                </div>
-
-                {/* Doctor active status */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-555 font-bold uppercase tracking-wider">Duty Status</label>
-                  <select 
-                    value={docStatus} 
-                    onChange={e => setDocStatus(e.target.value as any)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-805 focus:outline-none focus:border-[#0B4F8C]"
-                  >
-                    <option value="Active">Active Duty</option>
-                    <option value="Inactive">Inactive / On Leave</option>
+                <label className="space-y-1.5 sm:col-span-2">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Full name (without “Dr.”)</span>
+                  <input value={docName} onChange={(e) => setDocName(e.target.value)} className={inputCls} required />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Speciality</span>
+                  <input value={docSpec} onChange={(e) => setDocSpec(e.target.value)} placeholder="e.g. General Physician" className={inputCls} required />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Qualification</span>
+                  <input value={docQual} onChange={(e) => setDocQual(e.target.value)} placeholder="e.g. MBBS, MD" className={inputCls} />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Experience</span>
+                  <input value={docExp} onChange={(e) => setDocExp(e.target.value)} placeholder="e.g. 12 years" className={inputCls} />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Consultation fees (INR, optional)</span>
+                  <input type="number" min={0} value={docFees} onChange={(e) => setDocFees(e.target.value === '' ? '' : Number(e.target.value))} className={inputCls + ' font-mono'} />
+                </label>
+                <label className="space-y-1.5 sm:col-span-2">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Photo URL</span>
+                  <input value={docPhoto} onChange={(e) => setDocPhoto(e.target.value)} placeholder="https://…" className={inputCls} />
+                </label>
+                <label className="space-y-1.5 sm:col-span-2">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Short bio</span>
+                  <textarea value={docBio} onChange={(e) => setDocBio(e.target.value)} rows={3} className={inputCls} />
+                </label>
+                <label className="space-y-1.5 sm:col-span-2">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Languages (comma separated)</span>
+                  <input value={docLangs} onChange={(e) => setDocLangs(e.target.value)} className={inputCls} />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Available days</span>
+                  <input value={docDays} onChange={(e) => setDocDays(e.target.value)} placeholder="Mon, Tue, Wed" className={inputCls} />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Time slots</span>
+                  <input value={docSlots} onChange={(e) => setDocSlots(e.target.value)} placeholder="10:00 AM - 1:00 PM" className={inputCls} />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-500">Status</span>
+                  <select value={docStatus} onChange={(e) => setDocStatus(e.target.value as 'Active' | 'Inactive')} className={inputCls}>
+                    <option value="Active">Active (shown on website)</option>
+                    <option value="Inactive">Inactive / on leave (hidden)</option>
                   </select>
-                </div>
-
+                </label>
               </div>
 
               <div className="border-t border-slate-100 pt-4 flex justify-end gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setIsEditingDoctor(false)}
-                  className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-600 font-bold rounded-xl transition cursor-pointer"
-                >
+                <button type="button" onClick={() => setIsEditingDoctor(false)} className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs text-slate-600 font-bold rounded-xl cursor-pointer">
                   Cancel
                 </button>
-                <button 
-                  type="submit"
-                  className="flex items-center gap-1.5 px-5 py-2.5 bg-[#0B4F8C] hover:bg-[#083B69] text-white font-bold text-xs rounded-xl transition cursor-pointer"
-                >
-                  <Save className="h-4 w-4" /> Save Doctor Profile
+                <button type="submit" disabled={savingDoctor} className="flex items-center gap-1.5 px-5 py-2.5 bg-[#0B4F8C] hover:bg-[#083B69] text-white font-bold text-xs rounded-xl cursor-pointer disabled:opacity-60">
+                  {savingDoctor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Doctor Profile
                 </button>
               </div>
-
             </form>
           )}
-
         </div>
       )}
-
-      {/* ── WRITING PRESCRIPTION POPUP / FORM OVERLAY ── */}
-      {writingPrescriptionId && (
-        <div className="fixed inset-0 z-50 overflow-hidden text-xs">
-          <div 
-            onClick={() => setWritingPrescriptionId(null)}
-            className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs" 
-          />
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xl p-6 space-y-6 text-left">
-              
-              <div className="flex justify-between items-center border-b border-slate-150 pb-3">
-                <h4 className="font-extrabold text-sm text-[#172B4D] flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-teal-650" /> Write Digital Prescription (Booking #{writingPrescriptionId})
-                </h4>
-                <button onClick={() => setWritingPrescriptionId(null)} className="text-slate-400 hover:text-slate-900">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="space-y-2 font-bold">
-                <label className="text-slate-500 font-bold uppercase tracking-wider block">Electronic RX Content</label>
-                <textarea 
-                  value={prescriptionText}
-                  onChange={e => setPrescriptionText(e.target.value)}
-                  rows={8}
-                  className="w-full bg-white border border-slate-200 rounded-xl p-4 text-slate-800 font-mono focus:outline-none focus:border-[#0B4F8C] leading-relaxed"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 border-t border-slate-150 pt-4 font-bold">
-                <button 
-                  type="button" 
-                  onClick={() => setWritingPrescriptionId(null)}
-                  className="px-4 py-2 bg-white border border-slate-200 text-slate-500 hover:border-slate-350 text-xs font-bold rounded-xl"
-                >
-                  Discard
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleSavePrescription}
-                  className="px-5 py-2 bg-[#0B4F8C] hover:bg-[#083B69] text-white text-xs font-bold rounded-xl"
-                >
-                  Submit & Email Patient
-                </button>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Testimonial } from '@/types';
 export const testimonials: Testimonial[] = [
   {
     id: 'test-1',
-    name: 'Sarah Jenkins',
+    name: 'Sowmya Ramakrishnan',
     location: 'New York, USA',
     tripType: '2 Weeks in Bali',
     quote: 'My husband got the infamous Bali Belly on day 3. Having the Travel Med kit in our hotel room saved us a trip to the local clinic. The color-coded diarrhea guide was foolproof, and we were back on the beach by the next afternoon!',
@@ -12,7 +12,7 @@ export const testimonials: Testimonial[] = [
   },
   {
     id: 'test-2',
-    name: 'David Chen',
+    name: 'Venkatesh Iyer',
     location: 'San Francisco, USA',
     tripType: 'Trekking in Peru',
     quote: 'At 11,000 feet, I got a pounding headache and stomach nausea. I popped the Travel-Ibuprofen and mixed the rehydration salts. Within an hour, I felt stable enough to finish the day. This kit is literally a lifesaver for outdoor treks.',
@@ -21,7 +21,7 @@ export const testimonials: Testimonial[] = [
   },
   {
     id: 'test-3',
-    name: 'Emma Watson-Smith',
+    name: 'Ananya Nair',
     location: 'London, UK',
     tripType: 'Southeast Asia Backpacking',
     quote: 'I scratched my ankle on coral while snorkeling. I cleaned it with the alcohol wipes, applied the triple antibiotic ointment, and taped a waterproof dressing. It healed beautifully without any of the tropical infections my friends suffered.',
@@ -30,7 +30,7 @@ export const testimonials: Testimonial[] = [
   },
   {
     id: 'test-4',
-    name: 'Carlos Ruiz',
+    name: 'Karthik Menon',
     location: 'Madrid, Spain',
     tripType: 'Business in Tokyo & Kyoto',
     quote: 'Adjusting to the flights and time difference was rough, but having the sinus decongestant saved my ears during the descent. The teleconsultation doctor (Dr. Kenji) was incredibly helpful in verifying imports beforehand.',

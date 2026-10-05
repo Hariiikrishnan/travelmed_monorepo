@@ -8,11 +8,11 @@ generator client {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("user")
+  id                    String   @id @default(uuid())
+  email                 String   @unique
+  password              String
+  name                  String
+  role                  String   @default("user")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   freeConsultationCount Int      @default(0)
@@ -22,9 +22,11 @@ model User {
 }
 
 model Medicine {
-  id               String   @id
+  id               String            @id
   name             String
-  category         String
+  category         String // legacy display name — kept in sync with medicineCategory.name
+  categoryId       String?
+  medicineCategory MedicineCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   description      String
   activeIngredient String
   dosage           String
@@ -35,14 +37,60 @@ model Medicine {
   compartment      String
   alternative      String
   symptoms         String[]
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  kitItems         KitItem[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
+  @@index([categoryId])
   @@map("medicines")
 }
 
+model MedicineCategory {
+  id        String     @id @default(uuid())
+  slug      String     @unique
+  name      String     @unique
+  icon      String     @default("")
+  sortOrder Int        @default(0)
+  medicines Medicine[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("medicine_categories")
+}
+
+model KitType {
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  name        String    @unique
+  description String    @default("")
+  sortOrder   Int       @default(0)
+  status      String    @default("Active") // Active, Inactive
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("kit_types")
+}
+
+/// One medicine inside a kit, with how much of it the kit contains.
+model KitItem {
+  id         String   @id @default(uuid())
+  productId  String
+  medicineId String
+  quantity   Int      @default(1)
+  unit       String   @default("pcs")
+  note       String   @default("")
+  sortOrder  Int      @default(0)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, medicineId])
+  @@index([medicineId])
+  @@map("kit_items")
+}
+
 model Doctor {
-  id                String   @id
+  id                String                @id
   name              String
   specialty         String
   languages         String[]
@@ -53,8 +101,14 @@ model Doctor {
   availability      String
   image             String
   videoSimulatedUrl String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  qualification     String                @default("")
+  status            String                @default("Active") // Active, Inactive
+  fees              Int?
+  days              String[]              @default([])
+  slots             String[]              @default([])
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  consultations     ConsultationBooking[]
 
   @@map("doctors")
 }
@@ -92,10 +146,10 @@ model Testimonial {
 }
 
 model Order {
-  orderId           String      @id
+  orderId           String                @id
   userId            String?
-  user              User?       @relation(fields: [userId], references: [id])
-  status            String      @default("Processing") // Processing, Shipped, Out for Delivery, Delivered
+  user              User?                 @relation(fields: [userId], references: [id])
+  status            String                @default("Pending") // Pending, Processing, Shipped, Out for Delivery, Delivered, Cancelled, Refunded
   trackingNumber    String
   estimatedDelivery String
   subtotal          Float
@@ -107,11 +161,17 @@ model Order {
   shippingCountry   String
   shippingZipCode   String
   shippingPhone     String?
-  paymentStatus     String      @default("Pending") // Pending, Paid, Failed
+  shippingEmail     String?
+  couponCode        String?
+  discount          Float                 @default(0)
+  paymentStatus     String                @default("Pending") // Pending, Paid, Failed
   paymentId         String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  razorpayOrderId   String?               @unique
+  consultsAllowed   Int                   @default(0)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
   items             OrderItem[]
+  consultations     ConsultationBooking[]
 
   @@map("orders")
 }
@@ -119,6 +179,7 @@ model Order {
 model OrderItem {
   id             String  @id @default(uuid())
   orderId        String
+  productId      String?
   name           String
   price          Float
   quantity       Int
@@ -133,14 +194,14 @@ model OrderItem {
 }
 
 model Coupon {
-  id          String   @id @default(uuid())
-  code        String   @unique
-  discount    Int
-  type        String   @default("Percentage") // Percentage, Fixed
-  usages      Int      @default(0)
-  status      String   @default("Active") // Active, Inactive
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  code      String   @unique
+  discount  Int
+  type      String   @default("Percentage") // Percentage, Fixed
+  usages    Int      @default(0)
+  status    String   @default("Active") // Active, Inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("coupons")
 }
@@ -155,7 +216,7 @@ model SupportTicket {
   reply     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@map("support_tickets")
 }
 
@@ -167,4 +228,58 @@ model ActivityLog {
   createdAt DateTime @default(now())
 
   @@map("activity_logs")
+}
+
+model Product {
+  id               String    @id
+  slug             String    @unique
+  name             String
+  sku              String    @unique
+  mrp              Float
+  price            Float
+  gstPercent       Float     @default(5)
+  stock            Int       @default(0)
+  status           String    @default("In Stock") // In Stock, Out of Stock
+  visibility       String    @default("Visible") // Visible, Hidden
+  description      String    @default("")
+  highlights       String[]  @default([])
+  benefits         String[]  @default([])
+  specs            Json      @default("{}")
+  faqs             Json      @default("[]")
+  images           String[]  @default([])
+  seoTitle         String    @default("")
+  seoDescription   String    @default("")
+  kitTypeId        String?
+  kitType          KitType?  @relation(fields: [kitTypeId], references: [id], onDelete: SetNull)
+  tagline          String    @default("")
+  tripLength       String    @default("")
+  bagSize          String    @default("")
+  bagWeight        String    @default("")
+  consultsIncluded Int       @default(0)
+  isFeatured       Boolean   @default(false)
+  sortOrder        Int       @default(0)
+  items            KitItem[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("products")
+}
+
+model ConsultationBooking {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  whatsapp    String
+  symptom     String
+  destination String
+  doctorId    String?
+  doctor      Doctor?  @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  status      String   @default("New") // New, Contacted, Completed, Cancelled
+  meetingLink String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+  @@map("consultation_bookings")
 }
