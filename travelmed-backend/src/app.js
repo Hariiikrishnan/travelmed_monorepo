@@ -28,19 +28,13 @@ const app = express();
 // Global Middlewares
 app.use(helmet());
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
+  process.env.FRONTEND_URL ||
   'https://travelmed.org',
   'https://www.travelmed.org',
   'https://admin.travelmed.org',
   'http://187.127.170.239:3003',
   'http://187.127.170.239:3004',
   'http://187.127.170.239:8080',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:3002',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:3001',
-  'http://127.0.0.1:3002'
 ];
 
 app.use(cors({
