@@ -24,6 +24,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://187.127.170.239:5001
+        NEXT_PUBLIC_WEBSITE_URL: https://travelmed.org
     container_name: travelmed_admin
     restart: always
     environment:
