@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Video, Plus, Edit2, Save, X, Award, MessageCircle, Stethoscope, MapPin, Link2, Loader2, StickyNote,
 } from 'lucide-react';
@@ -44,11 +44,53 @@ export default function TeleconsultationView({
   onOpenOrder,
   onRefresh,
 }: TeleconsultationViewProps) {
-  const [teleTab, setTeleTab] = useState<'bookings' | 'doctors'>('bookings');
+  const [teleTab, setTeleTab] = useState<'bookings' | 'doctors' | 'pricing'>('bookings');
   const [bookingFilter, setBookingFilter] = useState<'all' | (typeof BOOKING_STATUSES)[number]>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState('');
   const [draft, setDraft] = useState<Record<string, { meetingLink: string; notes: string }>>({});
+
+  // Pricing form
+  const [consultationPrice, setConsultationPrice] = useState<number>(0);
+  const [loadingPrice, setLoadingPrice] = useState(false);
+  const [savingPrice, setSavingPrice] = useState(false);
+  const [priceError, setPriceError] = useState('');
+  
+  useEffect(() => {
+    if (teleTab === 'pricing') {
+      setLoadingPrice(true);
+      fetch(`${API_URL}/api/products/paid-consultation`, { headers: authHeaders() })
+        .then(res => res.json())
+        .then(body => {
+          if (body.data?.price) {
+            setConsultationPrice(body.data.price);
+          }
+        })
+        .catch(() => setPriceError('Failed to load consultation price'))
+        .finally(() => setLoadingPrice(false));
+    }
+  }, [teleTab]);
+
+  const handleSavePrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPrice(true);
+    setPriceError('');
+    try {
+      const res = await fetch(`${API_URL}/api/products/paid-consultation`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ price: consultationPrice }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || 'Failed to save price');
+      addActivityLog('Consultation Price Updated', `New price: ₹${consultationPrice}`);
+      alert('Price updated successfully');
+    } catch (err) {
+      setPriceError(err instanceof Error ? err.message : 'Failed to save price');
+    } finally {
+      setSavingPrice(false);
+    }
+  };
 
   // Doctor form
   const [isEditingDoctor, setIsEditingDoctor] = useState(false);
@@ -215,7 +257,7 @@ export default function TeleconsultationView({
           </p>
         </div>
         <div className="flex gap-2 font-bold text-xs">
-          {(['bookings', 'doctors'] as const).map((t) => (
+          {(['bookings', 'doctors', 'pricing'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTeleTab(t)}
@@ -223,7 +265,7 @@ export default function TeleconsultationView({
                 teleTab === t ? 'bg-[#0B4F8C] text-white font-black' : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900'
               }`}
             >
-              {t === 'bookings' ? `Consultation Requests (${bookings.length})` : `Doctor Profiles (${doctors.length})`}
+              {t === 'bookings' ? `Consultation Requests (${bookings.length})` : t === 'doctors' ? `Doctor Profiles (${doctors.length})` : 'Pricing'}
             </button>
           ))}
         </div>
@@ -390,7 +432,7 @@ export default function TeleconsultationView({
             )}
           </div>
         </div>
-      ) : (
+      ) : teleTab === 'doctors' ? (
         <div className="space-y-6">
           {!isEditingDoctor && (
             <div className="flex justify-end">
@@ -527,6 +569,45 @@ export default function TeleconsultationView({
               </div>
             </form>
           )}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <form onSubmit={handleSavePrice} className="bg-white border border-slate-200 rounded-2xl p-6 text-left space-y-6 max-w-lg mx-auto">
+            <div className="border-b border-slate-100 pb-4">
+              <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider">
+                Paid Consultation Pricing
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">Set the price for users who buy an extra teleconsultation.</p>
+            </div>
+
+            {priceError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-600">{priceError}</div>
+            )}
+
+            {loadingPrice ? (
+              <div className="py-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+            ) : (
+              <>
+                <label className="block space-y-1.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-500 text-xs">Price (INR)</span>
+                  <input 
+                    type="number" 
+                    min={0}
+                    value={consultationPrice} 
+                    onChange={(e) => setConsultationPrice(Number(e.target.value))} 
+                    className={inputCls} 
+                    required 
+                  />
+                </label>
+
+                <div className="pt-2">
+                  <button type="submit" disabled={savingPrice} className="w-full flex items-center justify-center gap-1.5 px-5 py-3 bg-[#0B4F8C] hover:bg-[#083B69] text-white font-bold text-sm rounded-xl cursor-pointer disabled:opacity-60">
+                    {savingPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Price
+                  </button>
+                </div>
+              </>
+            )}
+          </form>
         </div>
       )}
     </div>

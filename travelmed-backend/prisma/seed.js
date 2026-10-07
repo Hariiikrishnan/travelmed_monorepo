@@ -79,7 +79,7 @@ async function main() {
       name: 'Travel Med Kit - Standard Package',
       sku: 'TM-KIT-STD',
       mrp: 4500,
-      price: 2900,
+      price: 2500,
       gstPercent: 5,
       stock: 500,
       status: 'In Stock',

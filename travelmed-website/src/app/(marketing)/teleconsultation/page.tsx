@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCart } from '@/shared/providers/CartProvider';
+import { usePricing } from '@/shared/providers/ProductProvider';
 // Loaded dynamically from backend API
 import { Doctor } from '@/types';
 import { site } from '@/shared/config/site';
@@ -24,6 +27,7 @@ import {
   Languages,
   Lock,
   Globe,
+  ShoppingBag,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -79,6 +83,10 @@ const DEFAULT_DOCTORS: Doctor[] = [
 ];
 
 export default function TeleconsultationPage() {
+  const router = useRouter();
+  const { addItem, setIsCartOpen } = useCart();
+  const pricing = usePricing('paid-consultation');
+
   const [doctors, setDoctors] = useState<Doctor[]>(DEFAULT_DOCTORS);
   const [loading, setLoading] = useState(true);
 
@@ -292,6 +300,33 @@ export default function TeleconsultationPage() {
                   </a>
                 </div>
               </ScrollReveal>
+
+              <ScrollReveal direction="up" delay={0.4}>
+                <div className="mt-8 flex flex-col items-center lg:items-start">
+                  <p className="text-sm text-white/80">Need an extra consultation or out of free credits?</p>
+                  <button
+                    onClick={() => {
+                      if (!pricing || !pricing.inStock) return;
+                      addItem({
+                        id: pricing.product.id,
+                        name: pricing.product.name,
+                        price: pricing.price,
+                        type: 'kit',
+                        description: pricing.product.description || 'One extra teleconsultation.',
+                        options: {},
+                        quantity: 1,
+                      });
+                      setIsCartOpen(false);
+                      router.push('/checkout');
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-teal-200 hover:text-white transition group cursor-pointer"
+                  >
+                    <ShoppingBag className="h-4 w-4" />
+                    Buy Extra Consultation ({pricing?.priceText || '₹500'})
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                  </button>
+                </div>
+              </ScrollReveal>
             </div>
 
             {/* Kit visual */}
@@ -468,8 +503,30 @@ export default function TeleconsultationPage() {
 
                         <form onSubmit={handleSubmitDetails} className="space-y-5">
                           {errorMsg && (
-                            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-medium text-rose-600">
-                              {errorMsg}
+                            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 space-y-3">
+                              <p className="text-sm font-medium text-rose-600">{errorMsg}</p>
+                              {errorMsg.includes('no free teleconsultations') || errorMsg.includes('already been used') || errorMsg.includes('doesn\'t include free') ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!pricing || !pricing.inStock) return;
+                                    addItem({
+                                      id: pricing.product.id,
+                                      name: pricing.product.name,
+                                      price: pricing.price,
+                                      type: 'kit', // treat as kit for cart logic
+                                      description: pricing.product.description || 'One extra teleconsultation.',
+                                      options: {},
+                                      quantity: 1,
+                                    });
+                                    setIsCartOpen(false);
+                                    router.push('/checkout');
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-rose-100 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-200 transition"
+                                >
+                                  <ShoppingBag className="h-3.5 w-3.5" /> Buy Extra Consultation ({pricing?.priceText || '₹500'})
+                                </button>
+                              ) : null}
                             </div>
                           )}
 
